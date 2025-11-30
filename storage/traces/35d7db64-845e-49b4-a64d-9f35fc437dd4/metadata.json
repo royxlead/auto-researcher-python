@@ -1,0 +1,21 @@
+{
+  "job_id": "35d7db64-845e-49b4-a64d-9f35fc437dd4",
+  "start_time": "2025-11-30T15:32:22.404186",
+  "model": "x-ai/grok-4.1-fast",
+  "provider": "openrouter",
+  "retrieval_stats": {
+    "found_urls": 10,
+    "search_duration": 1.1458137035369873
+  },
+  "pdf_stats": {
+    "attempted": 10,
+    "successful": 9,
+    "failed": 1,
+    "total_chunks": 42,
+    "selected_chunks": 10,
+    "parse_duration": 15.460702896118164
+  },
+  "draft_length": 15112,
+  "critique_cycles": 0,
+  "end_time": "2025-11-30T15:36:15.607875"
+}

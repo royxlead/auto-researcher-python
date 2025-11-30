@@ -16,6 +16,19 @@ class CritiquePayload(TypedDict, total=False):
     needs_revision: bool
 
 
+class ResearchMetadata(TypedDict, total=False):
+    job_id: str
+    start_time: str
+    end_time: str
+    model: str
+    provider: str
+    total_tokens: int
+    retrieval_stats: dict
+    pdf_stats: dict
+    critique_cycles: int
+    draft_length: int
+
+
 class AgentState(TypedDict, total=False):
     query: str
     max_depth: int
@@ -28,3 +41,11 @@ class AgentState(TypedDict, total=False):
     draft: str
     critique: CritiquePayload
     revision_count: int
+    
+    # New fields
+    job_id: str
+    metadata: ResearchMetadata
+    seed: int
+    temperature: float
+    top_p: float
+

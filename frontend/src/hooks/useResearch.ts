@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { runResearch } from '../lib/api'
 import type { ResearchRequest, ResearchResponse } from '../types'
 
@@ -14,6 +14,7 @@ export function useResearch() {
   const [error, setError] = useState<string | null>(null)
   const [currentResult, setCurrentResult] = useState<ResearchResponse | null>(null)
   const [history, setHistory] = useState<HistoryItem[]>([])
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('research_history')
@@ -37,10 +38,25 @@ export function useResearch() {
     localStorage.removeItem('research_history')
   }
 
+  const stopResearch = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+      setIsLoading(false)
+      setError('Research stopped by user')
+    }
+  }
+
   const executeResearch = async (request: ResearchRequest) => {
     setIsLoading(true)
     setError(null)
     setCurrentResult(null)
+    
+    // Reset abort controller
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    abortControllerRef.current = new AbortController()
 
     try {
       // Use the streaming endpoint
@@ -48,6 +64,7 @@ export function useResearch() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
+        signal: abortControllerRef.current.signal
       })
 
       if (!response.ok) throw new Error('Failed to start research stream')
@@ -71,6 +88,9 @@ export function useResearch() {
               if (data.type === 'progress') {
                 // Dispatch custom event for LoadingState to consume
                 window.dispatchEvent(new CustomEvent('research-progress', { detail: data }))
+              } else if (data.type === 'token') {
+                // Dispatch token event
+                window.dispatchEvent(new CustomEvent('research-token', { detail: data }))
               } else if (data.type === 'result') {
                 const result = data.data
                 setCurrentResult(result)
@@ -91,11 +111,16 @@ export function useResearch() {
         }
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('Research aborted')
+        return
+      }
       const msg = err instanceof Error ? err.message : 'Unknown error occurred'
       setError(msg)
-      throw err
+      // throw err // Don't rethrow, just set error state
     } finally {
       setIsLoading(false)
+      abortControllerRef.current = null
     }
   }
 
@@ -105,6 +130,7 @@ export function useResearch() {
     currentResult,
     history,
     executeResearch,
+    stopResearch,
     clearHistory,
     setCurrentResult, // Allow setting result from history
   }

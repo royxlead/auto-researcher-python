@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import re
 import urllib.request
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
+import aiohttp
 import fitz  # type: ignore
 import structlog
 
@@ -16,9 +18,95 @@ USER_AGENT = "Auto-Researcher/1.0"
 REFERENCE_MARKERS = ("references", "bibliography", "acknowledgements")
 
 
+class PDFProcessor:
+    def __init__(self, max_concurrency: int = 5):
+        self.semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def process_batch(self, urls: List[str]) -> List[Optional[str]]:
+        tasks = [self.process_url(url) for url in urls]
+        return await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def process_url(self, url: str) -> Optional[str]:
+        async with self.semaphore:
+            try:
+                logger.info("pdf.process.start", url=url)
+                raw_bytes = await self._download_pdf_async(url)
+                if not raw_bytes:
+                    return None
+                
+                # Run CPU-bound extraction in a thread
+                text = await asyncio.to_thread(self._extract_and_validate, raw_bytes)
+                if not text:
+                    return None
+                    
+                cleaned = _strip_reference_sections(text)
+                logger.info("pdf.process.complete", url=url, char_count=len(cleaned))
+                return cleaned
+            except Exception as exc:
+                logger.warning("pdf.process.failed", url=url, error=str(exc))
+                return None
+
+    async def _download_pdf_async(self, url: str) -> Optional[bytes]:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers={"User-Agent": USER_AGENT}, timeout=15) as response:
+                    if response.status != 200:
+                        logger.warning("pdf.download.status_error", url=url, status=response.status)
+                        return None
+                    return await response.read()
+        except Exception as exc:
+            logger.warning("pdf.download.network_error", url=url, error=str(exc))
+            return None
+
+    def _extract_and_validate(self, raw_bytes: bytes) -> str:
+        settings = get_settings()
+        char_limit = settings.max_context_chars * 2
+        
+        text_parts = []
+        current_length = 0
+        
+        try:
+            with fitz.open(stream=io.BytesIO(raw_bytes), filetype="pdf") as document:
+                for page in document:
+                    page_text = _extract_page(page)
+                    if page_text and self._validate_segment(page_text):
+                        text_parts.append(page_text)
+                        current_length += len(page_text)
+                        if current_length >= char_limit:
+                            break
+        except Exception as exc:
+            logger.warning("pdf.extract.error", error=str(exc))
+            return ""
+            
+        return "\n".join(text_parts)
+
+    def _validate_segment(self, text: str) -> bool:
+        """
+        Validate text segment based on density scoring.
+        Reject segments with low alphanumeric density (e.g. OCR garbage, sparse tables).
+        """
+        if not text or len(text) < 50:
+            return False
+            
+        # Calculate density: (alphanumeric chars) / (total chars)
+        alphanum = sum(c.isalnum() for c in text)
+        density = alphanum / len(text)
+        
+        # Threshold: 0.5 means at least 50% of characters must be alphanumeric
+        if density < 0.5:
+            return False
+            
+        return True
+
+
+# Legacy wrapper for backward compatibility if needed, but we'll update nodes.py
 def parse_pdf(url: str) -> str:
     """Download and parse a PDF into clean text optimized for LLM consumption."""
-
+    # ... implementation ...
+    # For now, we can keep the old implementation or redirect to the new one synchronously
+    # But since we are moving to async, we should use the class.
+    # This function is kept for the synchronous parts of the code if any.
+    
     logger.info("pdf.parse.start", url=url)
     print(f"Downloading PDF: {url}...")
     raw_bytes = _download_pdf(url)
@@ -96,3 +184,4 @@ def _strip_reference_sections(text: str) -> str:
     cleaned = text[:cutoff]
     cleaned = re.sub(r"\s+", " ", cleaned)
     return cleaned.strip()
+

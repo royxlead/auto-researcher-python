@@ -5,6 +5,10 @@ import { Maximize, ZoomIn, ZoomOut } from 'lucide-react'
 interface Props {
   topic: string
   sources: string[]
+  graphData?: {
+    nodes: Array<{ id: string; type?: string; label?: string; url?: string }>
+    links: Array<{ source: string; target: string; weight?: number }>
+  }
 }
 
 interface Node {
@@ -14,6 +18,7 @@ interface Node {
   val: number
   color: string
   group: 'topic' | 'source'
+  url?: string
   x?: number
   y?: number
 }
@@ -23,7 +28,7 @@ interface Link {
   target: string | Node
 }
 
-export function KnowledgeGraph({ topic, sources }: Props) {
+export function KnowledgeGraph({ topic, sources, graphData }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<ForceGraphMethods<any, any> | undefined>(undefined)
@@ -81,6 +86,46 @@ export function KnowledgeGraph({ topic, sources }: Props) {
   const data = useMemo(() => {
     const safeTopic = (topic && typeof topic === 'string') ? topic : 'Research Topic'
     
+    // If we have backend graph data, use it but augment with topic node
+    if (graphData && graphData.nodes && graphData.nodes.length > 0) {
+        const nodes: Node[] = [
+            { 
+                id: 'root', 
+                name: safeTopic,
+                shortName: safeTopic.length > 40 ? safeTopic.slice(0, 40) + '...' : safeTopic,
+                val: 40, 
+                color: '#22d3ee', 
+                group: 'topic'
+            },
+            ...graphData.nodes.map(n => ({
+                id: n.id,
+                name: n.url || n.label || n.id,
+                shortName: n.label || n.id,
+                val: 15,
+                color: '#94a3b8',
+                group: 'source' as const,
+                url: n.url
+            }))
+        ]
+
+        // Links from backend + links from topic to all nodes (optional, to keep it connected)
+        // We'll add links from topic to all nodes to ensure connectivity, 
+        // but maybe with less weight or different visual style?
+        // For now, let's just add them.
+        const links: Link[] = [
+            ...(graphData.links || []).map(l => ({
+                source: l.source,
+                target: l.target
+            })),
+            ...graphData.nodes.map(n => ({
+                source: 'root',
+                target: n.id
+            }))
+        ]
+        
+        return { nodes, links }
+    }
+    
     // Normalize and filter sources
     const validSources = Array.isArray(sources) 
       ? Array.from(new Set(
@@ -106,7 +151,8 @@ export function KnowledgeGraph({ topic, sources }: Props) {
         shortName: extractLabel(source),
         val: 15, // Increased size
         color: '#94a3b8',
-        group: 'source' as const
+        group: 'source' as const,
+        url: source
       }))
     ]
 
@@ -116,7 +162,7 @@ export function KnowledgeGraph({ topic, sources }: Props) {
     }))
 
     return { nodes, links }
-  }, [topic, sources])
+  }, [topic, sources, graphData])
 
   // Apply custom physics forces
   useEffect(() => {
@@ -299,7 +345,7 @@ export function KnowledgeGraph({ topic, sources }: Props) {
         backgroundColor="#020617"
         onNodeClick={(node) => {
           if (node.group === 'source') {
-            const url = node.id
+            const url = (node as Node).url || node.id
             if (url.startsWith('http')) {
               window.open(url, '_blank')
             } else {

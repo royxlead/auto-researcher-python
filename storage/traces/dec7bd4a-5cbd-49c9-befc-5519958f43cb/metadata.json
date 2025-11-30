@@ -1,0 +1,18 @@
+{
+  "job_id": "dec7bd4a-5cbd-49c9-befc-5519958f43cb",
+  "start_time": "2025-11-30T15:24:14.947944",
+  "model": "default",
+  "provider": "ollama",
+  "retrieval_stats": {
+    "found_urls": 10,
+    "search_duration": 6.969602584838867
+  },
+  "pdf_stats": {
+    "attempted": 10,
+    "successful": 2,
+    "failed": 8,
+    "total_chunks": 3,
+    "selected_chunks": 3,
+    "parse_duration": 10.886613607406616
+  }
+}

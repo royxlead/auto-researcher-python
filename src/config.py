@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     max_context_chars: int = Field(default=12000, alias="MAX_CONTEXT_CHARS")
     frontend_origin: str = Field(default="http://localhost:5173", alias="FRONTEND_ORIGIN")
     tavily_topic: str = Field(default="general", alias="TAVILY_TOPIC")
+    
+    # Deterministic mode settings
+    default_seed: int = Field(default=42, alias="DEFAULT_SEED")
+    default_temperature: float = Field(default=0.2, alias="DEFAULT_TEMPERATURE")
+    default_top_p: float = Field(default=0.9, alias="DEFAULT_TOP_P")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

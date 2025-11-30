@@ -23,3 +23,4 @@ class ResearchResponse(BaseModel):
     final_report: str = Field(description="Structured literature review synthesized by the system")
     sources: list[str] = Field(default_factory=list, description="List of source URLs cited in the review")
     topic: str = Field(description="The original research topic")
+    graph_data: dict | None = Field(default=None, description="Citation graph data for visualization")

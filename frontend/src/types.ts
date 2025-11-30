@@ -12,4 +12,8 @@ export type ResearchResponse = {
   final_report: string
   sources: string[]
   topic: string
+  graph_data?: {
+    nodes: Array<{ id: string; type?: string; label?: string; url?: string }>
+    links: Array<{ source: string; target: string; weight?: number }>
+  }
 }
