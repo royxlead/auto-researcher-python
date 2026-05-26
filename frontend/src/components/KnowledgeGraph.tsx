@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d'
-import { Maximize, ZoomIn, ZoomOut } from 'lucide-react'
+import { ZoomIn, ZoomOut, Crosshair } from 'lucide-react'
 
 interface Props {
   topic: string
@@ -32,19 +32,10 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<ForceGraphMethods<any, any> | undefined>(undefined)
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
-  const [isDark, setIsDark] = useState(false)
-  const [highlightNodes, setHighlightNodes] = useState(new Set<string>())
-  const [highlightLinks, setHighlightLinks] = useState(new Set<string>())
+  const [dimensions, setDimensions] = useState({ width: 800, height: 420 })
   const [hoverNode, setHoverNode] = useState<string | null>(null)
 
   useEffect(() => {
-    const checkDark = () => document.documentElement.classList.contains('dark')
-    setIsDark(checkDark())
-
-    const observer = new MutationObserver(() => setIsDark(checkDark()))
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-
     const updateDimensions = () => {
       if (containerRef.current) {
         setDimensions({
@@ -56,12 +47,10 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
 
     const resizeObserver = new ResizeObserver(() => updateDimensions())
     if (containerRef.current) resizeObserver.observe(containerRef.current)
-
     window.addEventListener('resize', updateDimensions)
     updateDimensions()
 
     return () => {
-      observer.disconnect()
       resizeObserver.disconnect()
       window.removeEventListener('resize', updateDimensions)
     }
@@ -74,7 +63,6 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
       const domain = urlObj.hostname.replace('www.', '')
       const path = urlObj.pathname
       const file = path.split('/').pop() || ''
-      
       if (domain.includes('arxiv')) return `arXiv:${file.replace('.pdf', '')}`
       if (file.length > 15) return `${domain}/...${file.slice(-10)}`
       return `${domain}/${file}`
@@ -85,241 +73,160 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
 
   const data = useMemo(() => {
     const safeTopic = (topic && typeof topic === 'string') ? topic : 'Research Topic'
-    
-    // If we have backend graph data, use it but augment with topic node
-    if (graphData && graphData.nodes && graphData.nodes.length > 0) {
-        const nodes: Node[] = [
-            { 
-                id: 'root', 
-                name: safeTopic,
-                shortName: safeTopic.length > 40 ? safeTopic.slice(0, 40) + '...' : safeTopic,
-                val: 40, 
-                color: '#22d3ee', 
-                group: 'topic'
-            },
-            ...graphData.nodes.map(n => ({
-                id: n.id,
-                name: n.url || n.label || n.id,
-                shortName: n.label || n.id,
-                val: 15,
-                color: '#94a3b8',
-                group: 'source' as const,
-                url: n.url
-            }))
-        ]
 
-        // Links from backend + links from topic to all nodes (optional, to keep it connected)
-        // We'll add links from topic to all nodes to ensure connectivity, 
-        // but maybe with less weight or different visual style?
-        // For now, let's just add them.
-        const links: Link[] = [
-            ...(graphData.links || []).map(l => ({
-                source: l.source,
-                target: l.target
-            })),
-            ...graphData.nodes.map(n => ({
-                source: 'root',
-                target: n.id
-            }))
-        ]
-        
-        return { nodes, links }
+    if (graphData && graphData.nodes && graphData.nodes.length > 0) {
+      const nodes: Node[] = [
+        {
+          id: 'root',
+          name: safeTopic,
+          shortName: safeTopic.length > 40 ? safeTopic.slice(0, 40) + '...' : safeTopic,
+          val: 30,
+          color: '#6366f1',
+          group: 'topic'
+        },
+        ...graphData.nodes.map(n => ({
+          id: n.id,
+          name: n.url || n.label || n.id,
+          shortName: n.label || n.id,
+          val: 10,
+          color: '#8b8375',
+          group: 'source' as const,
+          url: n.url
+        }))
+      ]
+      const links: Link[] = [
+        ...(graphData.links || []).map(l => ({ source: l.source, target: l.target })),
+        ...graphData.nodes.map(n => ({ source: 'root', target: n.id }))
+      ]
+      return { nodes, links }
     }
-    
-    // Normalize and filter sources
-    const validSources = Array.isArray(sources) 
-      ? Array.from(new Set(
-          sources
-            .filter(s => typeof s === 'string')
-            .map(s => s.trim())
-            .filter(s => s.length > 0 && !['http://', 'https://'].includes(s))
-        ))
+
+    const validSources = Array.isArray(sources)
+      ? Array.from(new Set(sources.filter(s => typeof s === 'string').map(s => s.trim()).filter(s => s.length > 0 && !['http://', 'https://'].includes(s))))
       : []
 
-    const nodes: Node[] = [
-      { 
-        id: 'root', 
-        name: safeTopic,
-        shortName: safeTopic.length > 40 ? safeTopic.slice(0, 40) + '...' : safeTopic,
-        val: 40, // Increased size
-        color: '#22d3ee', 
-        group: 'topic'
-      },
-      ...validSources.map(source => ({
-        id: source,
-        name: source,
-        shortName: extractLabel(source),
-        val: 15, // Increased size
-        color: '#94a3b8',
-        group: 'source' as const,
-        url: source
-      }))
-    ]
-
-    const links: Link[] = validSources.map(source => ({
-      source: 'root',
-      target: source
-    }))
-
-    return { nodes, links }
+    return {
+      nodes: [
+        {
+          id: 'root',
+          name: safeTopic,
+          shortName: safeTopic.length > 40 ? safeTopic.slice(0, 40) + '...' : safeTopic,
+          val: 30,
+          color: '#6366f1',
+          group: 'topic'
+        },
+        ...validSources.map(s => ({
+          id: s,
+          name: s,
+          shortName: extractLabel(s),
+          val: 10,
+          color: '#8b8375',
+          group: 'source' as const,
+          url: s
+        }))
+      ],
+      links: validSources.map(s => ({ source: 'root', target: s }))
+    }
   }, [topic, sources, graphData])
 
-  // Apply custom physics forces
   useEffect(() => {
     if (graphRef.current) {
-      // Increase repulsion to prevent bunching
-      graphRef.current.d3Force('charge')?.strength(-400)
-      // Set optimal link distance
-      graphRef.current.d3Force('link')?.distance(120)
-      // Re-heat simulation
+      graphRef.current.d3Force('charge')?.strength(-300)
+      graphRef.current.d3Force('link')?.distance(100)
       graphRef.current.d3ReheatSimulation()
     }
   }, [data])
 
-  const handleNodeHover = (node: Node | null) => {
-    setHoverNode(node ? node.id : null)
-    const newHighlightNodes = new Set<string>()
-    const newHighlightLinks = new Set<string>()
-
-    if (node) {
-      newHighlightNodes.add(node.id)
-      // Find neighbors
-      data.links.forEach(link => {
-        const sourceId = typeof link.source === 'object' ? (link.source as Node).id : link.source
-        const targetId = typeof link.target === 'object' ? (link.target as Node).id : link.target
-        
-        if (sourceId === node.id || targetId === node.id) {
-          // Create a consistent key for the link
-          const linkKey = [sourceId, targetId].sort().join('-')
-          newHighlightLinks.add(linkKey)
-          newHighlightNodes.add(sourceId === node.id ? targetId as string : sourceId as string)
-        }
-      })
-    }
-
-    setHighlightNodes(newHighlightNodes)
-    setHighlightLinks(newHighlightLinks)
-  }
-
   const paintNode = useCallback((node: Node, ctx: CanvasRenderingContext2D, globalScale: number) => {
     if (typeof node.x !== 'number' || typeof node.y !== 'number') return
-
-    const isHovered = node.id === hoverNode
-    const isHighlighted = highlightNodes.has(node.id)
     const isRoot = node.group === 'topic'
-    
-    // Base size
-    const r = isRoot ? 6 : 3
-    
-    // Draw Glow (Outer Ring)
-    if (isHovered || isHighlighted || isRoot) {
+    const isHovered = node.id === hoverNode
+    const r = isRoot ? 5 : 3
+
+    // Glow on hover
+    if (isHovered) {
       ctx.beginPath()
-      const glowSize = isRoot ? r * 4 : r * 3
-      ctx.arc(node.x!, node.y!, glowSize, 0, 2 * Math.PI, false)
-      // Radial gradient for glow
-      const gradient = ctx.createRadialGradient(node.x!, node.y!, r, node.x!, node.y!, glowSize)
-      gradient.addColorStop(0, isRoot ? 'rgba(34, 211, 238, 0.3)' : 'rgba(148, 163, 184, 0.2)')
+      ctx.arc(node.x, node.y, r * 5, 0, 2 * Math.PI)
+      const gradient = ctx.createRadialGradient(node.x, node.y, r, node.x, node.y, r * 5)
+      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.25)')
       gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
       ctx.fillStyle = gradient
       ctx.fill()
     }
 
-    // Draw Node Core
-    ctx.beginPath()
-    ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI, false)
-    ctx.fillStyle = isRoot ? '#22d3ee' : (isHovered || isHighlighted ? '#f8fafc' : '#94a3b8')
-    ctx.fill()
-    
-    // Draw Ring for Root
+    // Outer ring for topic
     if (isRoot) {
       ctx.beginPath()
-      ctx.arc(node.x!, node.y!, r + 2, 0, 2 * Math.PI, false)
-      ctx.strokeStyle = '#22d3ee'
+      ctx.arc(node.x, node.y, r + 3, 0, 2 * Math.PI)
+      ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(node.x, node.y, r + 6, 0, 2 * Math.PI)
+      ctx.strokeStyle = 'rgba(99, 102, 241, 0.1)'
       ctx.lineWidth = 1
       ctx.stroke()
     }
 
-    // Draw Label
-    const label = node.shortName
-    const fontSize = isRoot ? 14/globalScale : 10/globalScale
-    ctx.font = `${isRoot ? 'bold' : ''} ${fontSize}px "Inter", sans-serif`
-    
-    // Text Shadow for readability (Neon effect)
-    ctx.shadowColor = 'black'
-    ctx.shadowBlur = 4
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 0
+    // Node
+    ctx.beginPath()
+    ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
+    ctx.fillStyle = isRoot ? '#6366f1' : (isHovered ? '#f5f3f0' : '#8b8375')
+    ctx.fill()
 
-    // Label Text - Always visible but dimmed when not hovered
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    
-    if (isHovered || isRoot) {
-      ctx.fillStyle = '#ffffff'
-      ctx.globalAlpha = 1
-    } else {
-      ctx.fillStyle = '#94a3b8' // Slate 400
-      ctx.globalAlpha = 0.7
+    if (isRoot) {
+      ctx.beginPath()
+      ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
+      ctx.strokeStyle = '#818cf8'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
     }
-    
-    ctx.fillText(label, node.x!, node.y! + r + 8 + fontSize / 2)
-    
-    // Reset global alpha and shadow
-    ctx.globalAlpha = 1
-    ctx.shadowBlur = 0
-  }, [hoverNode, highlightNodes])
+
+    // Label
+    if (isHovered || isRoot) {
+      const label = node.shortName
+      const fontSize = isRoot ? 11/globalScale : 9/globalScale
+      ctx.font = `${isRoot ? '600' : ''} ${fontSize}px Inter, sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = isHovered ? '#f5f3f0' : '#b0a99b'
+      ctx.shadowColor = 'rgba(0,0,0,0.6)'
+      ctx.shadowBlur = 4
+      ctx.fillText(label, node.x, node.y + r + 7 + fontSize / 2)
+      ctx.shadowBlur = 0
+    }
+  }, [hoverNode])
 
   const nodePointerAreaPaint = useCallback((node: Node, color: string, ctx: CanvasRenderingContext2D) => {
     if (typeof node.x !== 'number' || typeof node.y !== 'number') return
-
     const isRoot = node.group === 'topic'
-    const r = isRoot ? 6 : 3
-    const fontSize = isRoot ? 14 : 10
-
+    const r = isRoot ? 5 : 3
     ctx.fillStyle = color
-    
-    // Draw Circle (Hit Area)
     ctx.beginPath()
-    ctx.arc(node.x, node.y, r + 8, 0, 2 * Math.PI, false) // Larger hit area
+    ctx.arc(node.x, node.y, r + 8, 0, 2 * Math.PI)
     ctx.fill()
-
-    // Draw Label Rect (Hit Area)
-    ctx.font = `${isRoot ? 'bold' : ''} ${fontSize}px "Inter", sans-serif`
-    const textWidth = ctx.measureText(node.shortName).width
-    
-    // Label position matches paintNode
-    ctx.fillRect(
-        node.x - textWidth / 2 - 4, 
-        node.y + r + 4, 
-        textWidth + 8, 
-        fontSize + 8
-    )
   }, [])
 
   const handleZoom = (factor: number) => {
-    if (graphRef.current) {
-      graphRef.current.zoom(graphRef.current.zoom() * factor, 400)
-    }
+    if (graphRef.current) graphRef.current.zoom(graphRef.current.zoom() * factor, 400)
   }
 
   const handleFit = () => {
-    if (graphRef.current) {
-      graphRef.current.zoomToFit(400, 50)
-    }
+    if (graphRef.current) graphRef.current.zoomToFit(400, 50)
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-[600px] bg-[#020617] rounded-xl border border-slate-800 overflow-hidden shadow-2xl ring-1 ring-white/10">
+    <div ref={containerRef} className="relative w-full h-[420px] bg-[#121110]">
       {/* Controls */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/10 shadow-lg">
-        <button onClick={() => handleZoom(1.2)} className="p-2 hover:bg-white/10 rounded-md text-slate-400 hover:text-cyan-400 transition-colors" title="Zoom In">
-          <ZoomIn className="w-4 h-4" />
+      <div className="absolute top-3 right-3 z-10 flex gap-0.5 bg-black/40 backdrop-blur-sm rounded-lg p-1 border border-white/5">
+        <button onClick={() => handleZoom(1.2)} className="p-1.5 rounded hover:bg-white/10 text-neutral-500 hover:text-primary-400 transition-colors">
+          <ZoomIn className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => handleZoom(0.8)} className="p-2 hover:bg-white/10 rounded-md text-slate-400 hover:text-cyan-400 transition-colors" title="Zoom Out">
-          <ZoomOut className="w-4 h-4" />
+        <button onClick={() => handleZoom(0.8)} className="p-1.5 rounded hover:bg-white/10 text-neutral-500 hover:text-primary-400 transition-colors">
+          <ZoomOut className="w-3.5 h-3.5" />
         </button>
-        <button onClick={handleFit} className="p-2 hover:bg-white/10 rounded-md text-slate-400 hover:text-cyan-400 transition-colors" title="Fit to View">
-          <Maximize className="w-4 h-4" />
+        <button onClick={handleFit} className="p-1.5 rounded hover:bg-white/10 text-neutral-500 hover:text-primary-400 transition-colors">
+          <Crosshair className="w-3.5 h-3.5" />
         </button>
       </div>
 
@@ -328,48 +235,38 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
         width={dimensions.width}
         height={dimensions.height}
         graphData={data}
-        nodeLabel="name"
         nodeCanvasObject={(node, ctx, globalScale) => paintNode(node as Node, ctx, globalScale)}
         nodePointerAreaPaint={(node, color, ctx) => nodePointerAreaPaint(node as Node, color, ctx)}
-        linkColor={() => '#1e293b'} // Dark Slate lines
-        linkWidth={link => {
-            const sourceId = typeof link.source === 'object' ? (link.source as Node).id : link.source
-            const targetId = typeof link.target === 'object' ? (link.target as Node).id : link.target
-            const linkKey = [sourceId, targetId].sort().join('-')
-            return highlightLinks.has(linkKey) ? 2 : 1
-        }}
+        linkColor={() => '#2a2724'}
+        linkWidth={1}
         linkDirectionalParticles={2}
-        linkDirectionalParticleWidth={2}
-        linkDirectionalParticleSpeed={0.005}
-        linkDirectionalParticleColor={() => '#22d3ee'} // Cyan particles
-        backgroundColor="#020617"
+        linkDirectionalParticleWidth={1.5}
+        linkDirectionalParticleSpeed={0.004}
+        linkDirectionalParticleColor={() => '#6366f1'}
+        backgroundColor="#121110"
         onNodeClick={(node) => {
           if (node.group === 'source') {
             const url = (node as Node).url || node.id
-            if (url.startsWith('http')) {
-              window.open(url, '_blank')
-            } else {
-              // Fallback for non-URL sources -> Search Google Scholar
-              window.open(`https://scholar.google.com/scholar?q=${encodeURIComponent(url)}`, '_blank')
-            }
+            if (url.startsWith('http')) window.open(url, '_blank')
+            else window.open(`https://scholar.google.com/scholar?q=${encodeURIComponent(url)}`, '_blank')
           }
         }}
-        onNodeHover={(node) => handleNodeHover(node as Node | null)}
+        onNodeHover={(node) => setHoverNode(node ? node.id : null)}
         cooldownTicks={100}
         d3VelocityDecay={0.2}
         d3AlphaDecay={0.02}
       />
-      
+
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 pointer-events-none">
-        <div className="bg-black/40 backdrop-blur-md p-3 rounded-lg border border-white/10 text-xs text-slate-400 shadow-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]"></div>
-            <span className="font-medium text-slate-200">Research Topic</span>
+      <div className="absolute bottom-3 left-3">
+        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/5">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-primary-500" />
+            <span className="text-[10px] text-warm-400">Topic</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-            <span>Source Document</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-warm-500" />
+            <span className="text-[10px] text-warm-400">Source</span>
           </div>
         </div>
       </div>

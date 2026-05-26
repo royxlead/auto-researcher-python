@@ -4,8 +4,15 @@ export type ResearchRequest = {
   num_papers: number
   provider: string
   openrouter_api_key?: string
+  api_key?: string
   model?: string
   critic_strictness?: number
+
+  // Zero-knowledge encrypted API key fields
+  encrypted_api_key?: string
+  encryption_iv?: string
+  encryption_salt?: string
+  encryption_passphrase?: string
 }
 
 export type ResearchResponse = {

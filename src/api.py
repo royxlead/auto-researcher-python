@@ -20,6 +20,26 @@ settings = get_settings()
 configure_logging(settings)
 logger = structlog.get_logger(__name__)
 
+# Never log these sensitive fields
+_SENSITIVE_LOG_FIELDS = frozenset({
+    "api_key",
+    "openrouter_api_key",
+    "encrypted_api_key",
+    "encryption_iv",
+    "encryption_salt",
+    "encryption_passphrase",
+})
+
+
+def _safe_log_request(request: ResearchRequest) -> dict:
+    """Return a sanitised dict of request fields safe for logging."""
+    return {
+        k: v
+        for k, v in request.model_dump().items()
+        if k not in _SENSITIVE_LOG_FIELDS and v is not None
+    }
+
+
 app = FastAPI(title="Auto-Researcher", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -40,6 +60,10 @@ async def run_research_stream(request: ResearchRequest):
 
     job_id = str(uuid.uuid4())
     
+    # Zero-knowledge encryption params
+    encryption_passphrase = request.encryption_passphrase
+    encryption_salt = request.encryption_salt
+
     initial_state: AgentState = {
         "query": request.topic,
         "max_depth": request.max_depth,
@@ -48,6 +72,10 @@ async def run_research_stream(request: ResearchRequest):
         "openrouter_api_key": request.openrouter_api_key,
         "model": request.model,
         "critic_strictness": request.critic_strictness,
+        "encrypted_api_key": request.encrypted_api_key,
+        "encryption_iv": request.encryption_iv,
+        "encryption_salt": encryption_salt,
+        "encryption_passphrase": encryption_passphrase,
         "job_id": job_id,
         "seed": settings.default_seed,
         "temperature": settings.default_temperature,
@@ -88,12 +116,14 @@ async def run_research_stream(request: ResearchRequest):
             draft = final_state.get("draft")
             sources = [doc["source"] for doc in final_state.get("documents", [])]
             
-            # Save graph execution trace
-            tracer = TraceLogger(job_id)
-            # We can't easily serialize the whole graph state history from here without a custom callback,
-            # but we can save the final state.
+            # Save graph execution trace (encrypted at rest if passphrase provided)
+            tracer = TraceLogger(
+                job_id,
+                encryption_passphrase=encryption_passphrase,
+                encryption_salt=encryption_salt,
+            )
             tracer.save_graph_execution(final_state)
-            
+
             # Update end time in metadata
             metadata = final_state.get("metadata", {})
             metadata["end_time"] = datetime.utcnow().isoformat()
@@ -124,6 +154,9 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
 
     job_id = str(uuid.uuid4())
 
+    encryption_passphrase = request.encryption_passphrase
+    encryption_salt = request.encryption_salt
+
     initial_state: AgentState = {
         "query": request.topic,
         "max_depth": request.max_depth,
@@ -132,6 +165,10 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         "openrouter_api_key": request.openrouter_api_key,
         "model": request.model,
         "critic_strictness": request.critic_strictness,
+        "encrypted_api_key": request.encrypted_api_key,
+        "encryption_iv": request.encryption_iv,
+        "encryption_salt": encryption_salt,
+        "encryption_passphrase": encryption_passphrase,
         "job_id": job_id,
         "seed": settings.default_seed,
         "temperature": settings.default_temperature,
@@ -146,14 +183,19 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         }
     }
 
-    logger.info("api.research.start", topic=request.topic, max_depth=request.max_depth, papers=request.num_papers, provider=request.provider, model=request.model, strictness=request.critic_strictness, job_id=job_id)
+    log_fields = _safe_log_request(request)
+    logger.info("api.research.start", **log_fields, job_id=job_id)
     try:
         result: AgentState = await graph.ainvoke(initial_state)
         
-        # Save graph execution trace
-        tracer = TraceLogger(job_id)
+        # Save graph execution trace (encrypted at rest if passphrase provided)
+        tracer = TraceLogger(
+            job_id,
+            encryption_passphrase=encryption_passphrase,
+            encryption_salt=encryption_salt,
+        )
         tracer.save_graph_execution(result)
-        
+
         # Update end time in metadata
         metadata = result.get("metadata", {})
         metadata["end_time"] = datetime.utcnow().isoformat()

@@ -25,3 +25,6 @@ frontend/yarn-error.log*
 # IDEs
 .vscode/
 .idea/
+
+# Application Data
+storage/

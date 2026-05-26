@@ -18,12 +18,64 @@ from src.tools.pdf import parse_pdf, PDFProcessor
 from src.tools.search import search_papers
 from src.tools.ranking import rank_documents, chunk_text
 from src.tools.validation import validate_citations, check_factual_consistency
+from src.utils.crypto import decrypt_api_key
 from src.utils.tracing import TraceLogger
 
 logger = structlog.get_logger(__name__)
 
 
-@lru_cache(maxsize=4)
+# Provider configuration: mapping of provider names to their OpenAI-compatible base URLs
+# and config field prefixes for defaults
+PROVIDER_CONFIG: dict[str, dict[str, str]] = {
+    "openrouter": {
+        "base_url": "https://openrouter.ai/api/v1",
+        "config_prefix": "openrouter",
+        "default_model": "openai/gpt-3.5-turbo",
+    },
+    "openai": {
+        "base_url": "https://api.openai.com/v1",
+        "config_prefix": "openai",
+        "default_model": "gpt-4o",
+    },
+    "anthropic": {
+        "base_url": "https://api.anthropic.com/v1",
+        "config_prefix": "anthropic",
+        "default_model": "claude-sonnet-4-20250514",
+    },
+    "google": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "config_prefix": "google",
+        "default_model": "gemini-2.0-flash",
+    },
+    "perplexity": {
+        "base_url": "https://api.perplexity.ai",
+        "config_prefix": "perplexity",
+        "default_model": "sonar-pro",
+    },
+    "groq": {
+        "base_url": "https://api.groq.com/openai/v1",
+        "config_prefix": "groq",
+        "default_model": "mixtral-8x7b-32768",
+    },
+    "together": {
+        "base_url": "https://api.together.xyz/v1",
+        "config_prefix": "together",
+        "default_model": "mistralai/Mixtral-8x22B-Instruct-v0.1",
+    },
+    "deepseek": {
+        "base_url": "https://api.deepseek.com",
+        "config_prefix": "deepseek",
+        "default_model": "deepseek-chat",
+    },
+    "mistral": {
+        "base_url": "https://api.mistral.ai/v1",
+        "config_prefix": "mistral",
+        "default_model": "mistral-large-latest",
+    },
+}
+
+
+@lru_cache(maxsize=2)
 def _get_llm(
     provider: str = "ollama", 
     model: str | None = None, 
@@ -35,35 +87,51 @@ def _get_llm(
 ) -> Any:
     settings = get_settings()
     
-    if provider == "openrouter":
-        resolved_key = api_key or settings.openrouter_api_key
-        if not resolved_key:
-             raise ValueError("OpenRouter API key is required")
-        
-        model_kwargs = {}
-        if seed is not None:
-            model_kwargs["seed"] = seed
-        if top_p is not None:
-            model_kwargs["top_p"] = top_p
-        
-        return ChatOpenAI(
-            model=model or settings.openrouter_model,
-            api_key=resolved_key,
-            base_url="https://openrouter.ai/api/v1",
+    # Ollama uses LangChain's ChatOllama directly
+    if provider == "ollama":
+        resolved_model = model or settings.ollama_model
+        resolved_base = base_url or settings.ollama_base_url
+        return ChatOllama(
+            model=resolved_model,
+            base_url=resolved_base,
             temperature=temperature,
-            model_kwargs=model_kwargs
+            top_p=top_p,
+            seed=seed
         )
-
-    resolved_model = model or settings.ollama_model
-    resolved_base = base_url or settings.ollama_base_url
     
-    # Ollama supports these directly
-    return ChatOllama(
+    # For all other providers, use OpenAI-compatible ChatOpenAI
+    config = PROVIDER_CONFIG.get(provider)
+    if not config:
+        raise ValueError(f"Unknown provider: {provider}")
+    
+    prefix = config["config_prefix"]
+    resolved_model = model or getattr(settings, f"{prefix}_model", None) or config["default_model"]
+    
+    # Resolve API key: passed in, or from settings, or raise for cloud providers
+    resolved_key = api_key or getattr(settings, f"{prefix}_api_key", None)
+    if not resolved_key and provider != "ollama":
+        raise ValueError(f"API key is required for {provider}. Set {prefix.upper()}_API_KEY or pass it in the request.")
+    
+    resolved_base = base_url or config["base_url"]
+    
+    model_kwargs = {}
+    if seed is not None:
+        model_kwargs["seed"] = seed
+    if top_p is not None:
+        model_kwargs["top_p"] = top_p
+    
+    extra_headers = {}
+    if provider == "openrouter":
+        extra_headers["HTTP-Referer"] = "http://localhost:5173"
+        extra_headers["X-Title"] = "Auto-Researcher"
+    
+    return ChatOpenAI(
         model=resolved_model,
+        api_key=resolved_key,
         base_url=resolved_base,
         temperature=temperature,
-        top_p=top_p,
-        seed=seed
+        model_kwargs=model_kwargs or None,
+        default_headers=extra_headers or None
     )
 
 
@@ -185,14 +253,35 @@ async def draft_node(state: AgentState) -> AgentState:
     seed = state.get("seed", settings.default_seed)
     temperature = state.get("temperature", settings.default_temperature)
     top_p = state.get("top_p", settings.default_top_p)
+
+    # Zero-knowledge: decrypt API key from encrypted fields if provided
+    encryption_passphrase = state.get("encryption_passphrase")
+    encrypted_api_key = state.get("encrypted_api_key")
+    encryption_iv = state.get("encryption_iv")
+    encryption_salt = state.get("encryption_salt")
+
+    resolved_api_key: str | None = api_key
+    if encryption_passphrase and encrypted_api_key and encryption_iv and encryption_salt:
+        try:
+            resolved_api_key = decrypt_api_key(
+                encrypted_api_key, encryption_iv, encryption_salt, encryption_passphrase
+            )
+            logger.debug("api_key.decrypted", provider=provider)
+        except ValueError as exc:
+            raise ValueError(f"Failed to decrypt API key for {provider}: {exc}") from exc
+
+    # Minimize passphrase memory exposure — drop references now that decryption is done
+    encryption_passphrase = None
+    state.pop("encryption_passphrase", None)
+    state.pop("encryption_salt", None)
     
     llm = _get_llm(
-        provider=provider, 
-        model=model, 
-        api_key=api_key,
+        provider=provider,
+        model=model,
+        api_key=resolved_api_key,
         seed=seed,
         temperature=temperature,
-        top_p=top_p
+        top_p=top_p,
     )
 
     context_sections = _format_sources(documents)
@@ -212,9 +301,13 @@ async def draft_node(state: AgentState) -> AgentState:
     
     draft_text = _coerce_content(response)
     
-    # Log trace
+    # Log trace (with encryption at rest if passphrase is available)
     if job_id != "unknown":
-        tracer = TraceLogger(job_id)
+        tracer = TraceLogger(
+            job_id,
+            encryption_passphrase=encryption_passphrase,
+            encryption_salt=encryption_salt,
+        )
         tracer.log_llm_call(
             step=f"draft_revision_{revisions}",
             prompt=prompt,
@@ -307,14 +400,30 @@ async def critique_node(state: AgentState) -> AgentState:
     seed = state.get("seed", settings.default_seed)
     temperature = state.get("temperature", settings.default_temperature)
     top_p = state.get("top_p", settings.default_top_p)
-    
+
+    # Zero-knowledge: decrypt API key from encrypted fields if provided
+    encryption_passphrase = state.get("encryption_passphrase")
+    encrypted_api_key = state.get("encrypted_api_key")
+    encryption_iv = state.get("encryption_iv")
+    encryption_salt = state.get("encryption_salt")
+
+    resolved_api_key: str | None = api_key
+    if encryption_passphrase and encrypted_api_key and encryption_iv and encryption_salt:
+        try:
+            resolved_api_key = decrypt_api_key(
+                encrypted_api_key, encryption_iv, encryption_salt, encryption_passphrase
+            )
+            logger.debug("api_key.decrypted", provider=provider)
+        except ValueError as exc:
+            raise ValueError(f"Failed to decrypt API key for {provider}: {exc}") from exc
+
     llm = _get_llm(
-        provider=provider, 
-        model=model, 
-        api_key=api_key,
+        provider=provider,
+        model=model,
+        api_key=resolved_api_key,
         seed=seed,
         temperature=temperature,
-        top_p=top_p
+        top_p=top_p,
     )
     context = _format_sources(documents)
 
@@ -357,9 +466,13 @@ async def critique_node(state: AgentState) -> AgentState:
     
     critique_data = _parse_critique(response)
     
-    # Log trace
+    # Log trace (with encryption at rest if passphrase is available)
     if job_id != "unknown":
-        tracer = TraceLogger(job_id)
+        tracer = TraceLogger(
+            job_id,
+            encryption_passphrase=encryption_passphrase,
+            encryption_salt=encryption_salt,
+        )
         tracer.log_llm_call(
             step=f"critique_revision_{state.get('revision_count', 0)}",
             prompt=critique_prompt,
@@ -376,9 +489,9 @@ async def critique_node(state: AgentState) -> AgentState:
         or bool(invalid_citations)  # Force revision if citations are invalid
     )
     revisions = state.get("revision_count", 0)
-    if needs_revision and revisions < 1:
-        revisions += 1
+    if needs_revision:
         print(f"Critique: Needs revision (Score: {score}/{threshold}, Feedback: {critique_data.get('feedback')[:50]}...)")
+        revisions += 1
     else:
         print(f"Critique: Passed (Score: {score}/{threshold})")
 
@@ -403,8 +516,17 @@ async def critique_node(state: AgentState) -> AgentState:
 
 def _parse_critique(message: Any) -> dict[str, Any]:
     raw = _coerce_content(message)
+    cleaned = raw.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    cleaned = cleaned.strip()
+
     try:
-        data = json.loads(raw)
+        data = json.loads(cleaned)
     except json.JSONDecodeError:
         logger.warning("node.critique.json_error", raw=raw)
         data = {}

@@ -49,3 +49,7 @@ class AgentState(TypedDict, total=False):
     temperature: float
     top_p: float
 
+    # Zero-knowledge encryption fields (never persisted to disk, in-memory only)
+    encryption_passphrase: str | None
+    encryption_salt: str | None
+

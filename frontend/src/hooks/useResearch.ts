@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { runResearch } from '../lib/api'
 import type { ResearchRequest, ResearchResponse } from '../types'
 
 export type HistoryItem = ResearchResponse & {

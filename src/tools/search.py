@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import OrderedDict
 
 import structlog
-from duckduckgo_search import DDGS  # type: ignore
+from ddgs import DDGS  # type: ignore
 from tavily import TavilyClient  # type: ignore
 
 from src.config import get_settings
