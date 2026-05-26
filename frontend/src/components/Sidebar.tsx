@@ -58,7 +58,6 @@ export function Sidebar({
   const [showHintInput, setShowHintInput] = useState(false)
   const [hintDraft, setHintDraft] = useState(passphraseHint)
 
-  // Sync hintDraft when passphraseHint changes (e.g., loaded from localStorage)
   useEffect(() => {
     setHintDraft(passphraseHint)
   }, [passphraseHint])
@@ -82,7 +81,7 @@ export function Sidebar({
       setRecoveryCopied(true)
       setTimeout(() => setRecoveryCopied(false), 2000)
     } catch {
-      // Fallback: select the text manually
+      // Fallback
     }
   }
 
@@ -106,20 +105,20 @@ export function Sidebar({
   }
 
   return (
-    <div className={`relative h-full shrink-0 transition-all duration-300 ease-out ${collapsed ? 'w-[56px]' : 'w-64'}`}>
-      <div className="h-full bg-white dark:bg-[#1a1917] border-r border-warm-200 dark:border-[#2a2724] flex flex-col shadow-sm">
+    <div className={`relative h-full shrink-0 transition-all duration-300 ease-out ${collapsed ? 'w-[60px]' : 'w-64'}`}>
+      <div className="h-full bg-white/90 dark:bg-[#161514]/90 backdrop-blur-xl border-r border-warm-200/50 dark:border-white/[0.06] flex flex-col shadow-sm">
         {/* Header */}
-        <div className={collapsed ? 'p-3 flex flex-col items-center gap-2' : 'p-4 pb-2'}>
+        <div className={collapsed ? 'p-3 flex flex-col items-center gap-2' : 'p-4 pb-3'}>
           {collapsed ? (
-            <button onClick={onNewChat} className="p-2 rounded-xl bg-gradient-to-br from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 shadow-sm hover:shadow transition-all duration-200">
+            <button onClick={onNewChat} className="p-2.5 rounded-xl bg-gradient-to-br from-primary-600 to-primary-500 text-white hover:from-primary-500 hover:to-primary-400 shadow-sm shadow-primary-500/20 hover:shadow-md hover:shadow-primary-500/30 transition-all duration-200 active:scale-95">
               <Plus className="w-4 h-4" />
             </button>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-5 px-1">
+              <div className="flex items-center justify-between mb-4 px-0.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-600 to-primary-400 flex items-center justify-center shadow-sm">
-                    <Search className="w-3.5 h-3.5 text-white" />
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-600 to-primary-500 flex items-center justify-center shadow-sm shadow-primary-500/20">
+                    <Search className="w-4 h-4 text-white" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-warm-800 dark:text-warm-200">Researcher</span>
@@ -129,7 +128,7 @@ export function Sidebar({
               </div>
               <button
                 onClick={onNewChat}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white rounded-xl text-sm font-medium transition-all duration-200 shadow-sm hover:shadow"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white rounded-xl text-sm font-medium transition-all duration-200 shadow-sm shadow-primary-500/20 hover:shadow-md hover:shadow-primary-500/30 active:scale-[0.98]"
               >
                 <Plus className="w-3.5 h-3.5" />
                 New chat
@@ -140,7 +139,7 @@ export function Sidebar({
 
         {/* History */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <div className={collapsed ? 'px-2 py-3 flex flex-col items-center gap-1' : 'p-3'}>
+          <div className={collapsed ? 'px-2 py-3 flex flex-col items-center gap-1' : 'p-3 pt-2'}>
             {!collapsed && (
               <div className="flex items-center justify-between px-2 mb-2">
                 <span className="text-[11px] font-medium text-warm-400 dark:text-warm-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -148,7 +147,7 @@ export function Sidebar({
                   History
                 </span>
                 {history.length > 0 && (
-                  <button onClick={onClear} className="text-[10px] text-warm-400 hover:text-red-500 transition-colors px-1.5 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-950">
+                  <button onClick={onClear} className="text-[10px] text-warm-400 hover:text-red-500 transition-colors px-1.5 py-0.5 rounded hover:bg-red-50/50 dark:hover:bg-red-950/30">
                     Clear
                   </button>
                 )}
@@ -157,8 +156,8 @@ export function Sidebar({
 
             {history.length === 0 ? (
               !collapsed && (
-                <div className="text-center py-10">
-                  <div className="w-10 h-10 rounded-xl bg-warm-100 dark:bg-[#2a2724] flex items-center justify-center mx-auto mb-3">
+                <div className="text-center py-12">
+                  <div className="w-10 h-10 rounded-xl bg-warm-100/60 dark:bg-white/[0.04] flex items-center justify-center mx-auto mb-3">
                     <MessageSquare className="w-4 h-4 text-warm-400" />
                   </div>
                   <p className="text-xs text-warm-400">No history yet</p>
@@ -166,12 +165,12 @@ export function Sidebar({
                 </div>
               )
             ) : collapsed ? (
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {history.slice(0, 8).map((item) => (
                   <button
                     key={item.id}
                     onClick={() => onSelect(item)}
-                    className="w-9 h-9 rounded-xl bg-warm-50 dark:bg-[#121110] border border-warm-200 dark:border-[#2a2724] hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-sm transition-all duration-200 flex items-center justify-center shrink-0"
+                    className="w-9 h-9 rounded-xl bg-warm-50/60 dark:bg-white/[0.04] border border-warm-200/50 dark:border-white/[0.06] hover:border-primary-300/50 dark:hover:border-primary-700/50 hover:shadow-sm transition-all duration-200 flex items-center justify-center shrink-0"
                     title={item.topic}
                   >
                     <MessageSquare className="w-3.5 h-3.5 text-warm-400" />
@@ -184,13 +183,13 @@ export function Sidebar({
                   <button
                     key={item.id}
                     onClick={() => onSelect(item)}
-                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-warm-50 dark:hover:bg-[#121110] transition-all duration-200 group border border-transparent hover:border-warm-200 dark:hover:border-[#2a2724]"
+                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-warm-50/60 dark:hover:bg-white/[0.03] transition-all duration-200 group border border-transparent hover:border-warm-200/50 dark:hover:border-white/[0.06]"
                   >
                     <div className="flex items-start gap-2.5">
-                      <div className="w-6 h-6 rounded-lg bg-warm-100 dark:bg-[#2a2724] flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary-100 dark:group-hover:bg-primary-950 transition-colors">
-                        <MessageSquare className="w-3 h-3 text-warm-400 group-hover:text-primary-500 transition-colors" />
+                      <div className="w-7 h-7 rounded-lg bg-warm-100/60 dark:bg-white/[0.05] flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary-100/80 dark:group-hover:bg-primary-950/30 transition-colors">
+                        <MessageSquare className="w-3.5 h-3.5 text-warm-400 group-hover:text-primary-500 transition-colors" />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm text-warm-700 dark:text-warm-300 line-clamp-1 group-hover:text-warm-900 dark:group-hover:text-warm-100 transition-colors">
                           {item.topic}
                         </p>
@@ -209,17 +208,17 @@ export function Sidebar({
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border border-warm-200 dark:border-[#2a2724] bg-white dark:bg-[#1a1917] flex items-center justify-center text-warm-400 hover:text-warm-600 dark:hover:text-warm-300 shadow-sm hover:shadow transition-all duration-200 z-10"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border border-warm-200/50 dark:border-white/[0.08] bg-white dark:bg-[#161514] flex items-center justify-center text-warm-400 hover:text-warm-600 dark:hover:text-warm-300 shadow-sm hover:shadow transition-all duration-200 z-10"
         >
           <ChevronLeft className={`w-3 h-3 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} />
         </button>
 
         {/* Footer */}
-        <div className="border-t border-warm-200 dark:border-[#2a2724]">
+        <div className="border-t border-warm-200/50 dark:border-white/[0.06]">
           {/* Zero-knowledge section */}
           {!collapsed && (
-            <div className="px-3 pt-2.5 pb-1.5">
-              <label className="text-[10px] font-medium text-warm-400 dark:text-warm-500 uppercase tracking-wider flex items-center gap-1 mb-1.5">
+            <div className="px-3 pt-3 pb-1.5">
+              <label className="text-[10px] font-medium text-warm-400 dark:text-warm-500 uppercase tracking-wider flex items-center gap-1 mb-2">
                 {passphrase ? (
                   <><Lock className="w-2.5 h-2.5 text-emerald-500" /> Encryption active</>
                 ) : hasBiometricCredential ? (
@@ -231,14 +230,14 @@ export function Sidebar({
 
               {/* Biometric error */}
               {biometricError && (
-                <div className="mb-2 px-2.5 py-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg text-[10px] text-red-600 dark:text-red-400 leading-tight">
+                <div className="mb-2 px-2.5 py-1.5 bg-red-50/80 dark:bg-red-950/20 backdrop-blur-sm border border-red-200/50 dark:border-red-900/50 rounded-lg text-[10px] text-red-600 dark:text-red-400 leading-tight">
                   {biometricError}
                 </div>
               )}
 
-              {/* ── RECOVERY CODE DISPLAY (shown right after biometric registration) ── */}
+              {/* Recovery code display */}
               {recoveryCode && (
-                <div className="mb-2 p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2">
+                <div className="mb-2 p-2.5 bg-amber-50/80 dark:bg-amber-950/20 backdrop-blur-sm border border-amber-200/50 dark:border-amber-800/50 rounded-xl space-y-2">
                   <div className="flex items-start gap-2">
                     <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
                     <div>
@@ -246,31 +245,24 @@ export function Sidebar({
                         Recovery code saved
                       </p>
                       <p className="text-[9px] text-amber-600 dark:text-amber-500 leading-tight mt-0.5">
-                        Save this code somewhere safe — it's the only way to unlock your passphrase if you lose biometric access.
+                        Save this somewhere safe — it's your only backup.
                       </p>
                     </div>
                   </div>
 
-                  {/* Recovery code box */}
                   <div className="flex items-stretch gap-1">
-                    <div className="flex-1 min-w-0 px-2 py-1.5 bg-white dark:bg-[#121110] border border-amber-200 dark:border-amber-800 rounded-lg font-mono text-[10px] text-amber-800 dark:text-amber-300 tracking-wide select-all break-all leading-relaxed">
+                    <div className="flex-1 min-w-0 px-2 py-1.5 bg-white/80 dark:bg-black/30 border border-amber-200/50 dark:border-amber-800/50 rounded-lg font-mono text-[10px] text-amber-800 dark:text-amber-300 tracking-wide select-all break-all leading-relaxed">
                       {recoveryCode}
                     </div>
                     <button
                       type="button"
                       onClick={handleCopyRecoveryCode}
-                      className="px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/30 transition-all duration-200 shrink-0"
-                      title={recoveryCopied ? 'Copied!' : 'Copy code'}
+                      className="px-2 py-1.5 rounded-lg bg-amber-100/80 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 text-amber-600 dark:text-amber-400 hover:bg-amber-200/80 dark:hover:bg-amber-800/20 transition-all duration-200 shrink-0"
                     >
-                      {recoveryCopied ? (
-                        <Check className="w-3 h-3" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
-                      )}
+                      {recoveryCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     </button>
                   </div>
 
-                  {/* Hint field */}
                   <div className="space-y-1">
                     <label className="text-[9px] text-amber-600 dark:text-amber-500 font-medium">
                       Optional hint (reminds you of your passphrase)
@@ -282,38 +274,36 @@ export function Sidebar({
                         onChange={(e) => setHintDraft(e.target.value)}
                         placeholder="e.g., my usual research password"
                         maxLength={100}
-                        className="flex-1 min-w-0 px-2 py-1.5 text-[10px] rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-[#121110] text-amber-700 dark:text-amber-300 placeholder:text-amber-400/50 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-all duration-200"
+                        className="flex-1 min-w-0 px-2 py-1.5 text-[10px] rounded-lg border border-amber-200/50 dark:border-amber-800/50 bg-white/80 dark:bg-black/30 text-amber-700 dark:text-amber-300 placeholder:text-amber-400/50 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-all duration-200"
                       />
                       <button
                         type="button"
                         onClick={handleSaveHintClick}
-                        className="px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/30 transition-all duration-200 shrink-0"
-                        title="Save hint"
+                        className="px-2 py-1 rounded-lg bg-amber-100/80 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 text-amber-600 dark:text-amber-400 hover:bg-amber-200/80 dark:hover:bg-amber-800/20 transition-all duration-200 shrink-0"
                       >
                         <Save className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Dismiss */}
                   <button
                     type="button"
                     onClick={onDismissRecoveryCode}
-                    className="w-full py-1.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-800/30 rounded-lg transition-all duration-200"
+                    className="w-full py-1.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-900/20 hover:bg-amber-200/80 dark:hover:bg-amber-800/20 rounded-lg transition-all duration-200"
                   >
                     I've saved it — dismiss
                   </button>
                 </div>
               )}
 
-              {/* ── BIOMETRIC UNLOCK VIEW ── */}
+              {/* Biometric unlock view */}
               {hasBiometricCredential && !passphrase && !recoveryCode && !showRecoveryInput && (
                 <>
                   <button
                     type="button"
                     onClick={onUnlockBiometric}
                     disabled={isUnlocking}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary-50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 rounded-lg text-xs font-medium text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary-50/80 dark:bg-primary-950/20 backdrop-blur-sm border border-primary-200/50 dark:border-primary-800/50 rounded-lg text-xs font-medium text-primary-700 dark:text-primary-300 hover:bg-primary-100/80 dark:hover:bg-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     {isUnlocking ? (
                       <>
@@ -328,18 +318,17 @@ export function Sidebar({
                     )}
                   </button>
 
-                  {/* Recovery link */}
                   <button
                     type="button"
                     onClick={() => setShowRecoveryInput(true)}
-                    className="w-full text-[10px] text-warm-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors mt-1 py-1"
+                    className="w-full text-[10px] text-warm-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors mt-1.5 py-1"
                   >
                     Lost biometric? Use recovery code
                   </button>
                 </>
               )}
 
-              {/* ── RECOVERY INPUT VIEW ── */}
+              {/* Recovery input */}
               {hasBiometricCredential && !passphrase && showRecoveryInput && (
                 <div className="space-y-2">
                   <button
@@ -367,7 +356,7 @@ export function Sidebar({
                       onKeyDown={(e) => { if (e.key === 'Enter') handleRecover() }}
                       placeholder="e.g., apple-coral-quill-tiger-zeal"
                       autoFocus
-                      className="flex-1 min-w-0 px-2.5 py-1.5 text-[10px] rounded-lg border border-warm-200 dark:border-[#2a2724] bg-warm-50 dark:bg-[#121110] text-warm-700 dark:text-warm-300 focus:outline-none focus:ring-1 focus:ring-primary-500/30 placeholder:text-warm-400 font-mono transition-all duration-200"
+                      className="flex-1 min-w-0 px-2.5 py-1.5 text-[10px] rounded-lg border border-warm-200/50 dark:border-white/[0.08] bg-warm-50/60 dark:bg-white/[0.04] text-warm-700 dark:text-warm-300 focus:outline-none focus:ring-1 focus:ring-primary-500/30 placeholder:text-warm-400 font-mono transition-all duration-200"
                     />
                     <button
                       type="button"
@@ -385,7 +374,7 @@ export function Sidebar({
                 </div>
               )}
 
-              {/* ── PASSPHRASE ACTIVE VIEW ── */}
+              {/* Passphrase active view */}
               {passphrase && !recoveryCode && (
                 <>
                   <div className="flex items-stretch gap-1.5">
@@ -396,8 +385,8 @@ export function Sidebar({
                       readOnly={hasBiometricCredential}
                       className={`flex-1 min-w-0 px-2.5 py-1.5 text-xs rounded-lg border transition-all duration-200 ${
                         hasBiometricCredential
-                          ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 cursor-default'
-                          : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                          ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/50 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 cursor-default'
+                          : 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/50 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300'
                       } focus:outline-none focus:ring-1 focus:ring-primary-500/30`}
                     />
                     {!hasBiometricCredential && (
@@ -405,7 +394,7 @@ export function Sidebar({
                         type="button"
                         onClick={onRegisterBiometric}
                         disabled={isUnlocking}
-                        className="px-2 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shrink-0"
+                        className="px-2 py-1.5 rounded-lg bg-primary-50/80 dark:bg-primary-950/20 border border-primary-200/50 dark:border-primary-800/50 text-primary-600 dark:text-primary-400 hover:bg-primary-100/80 dark:hover:bg-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shrink-0"
                         title="Enable biometric unlock"
                       >
                         {isUnlocking ? (
@@ -417,10 +406,9 @@ export function Sidebar({
                     )}
                   </div>
 
-                  {/* Recovery options (only when biometric is enrolled) */}
+                  {/* Recovery options */}
                   {hasBiometricCredential && (
-                    <div className="mt-1.5 space-y-1">
-                      {/* Hint input */}
+                    <div className="mt-2 space-y-1.5">
                       {showHintInput ? (
                         <div className="flex items-stretch gap-1">
                           <input
@@ -429,13 +417,12 @@ export function Sidebar({
                             onChange={(e) => setHintDraft(e.target.value)}
                             placeholder="Recovery hint (reminds you of passphrase)"
                             maxLength={100}
-                            className="flex-1 min-w-0 px-2 py-1 text-[10px] rounded-lg border border-warm-200 dark:border-[#2a2724] bg-warm-50 dark:bg-[#121110] text-warm-700 dark:text-warm-300 focus:outline-none focus:ring-1 focus:ring-primary-500/30 placeholder:text-warm-400 transition-all duration-200"
+                            className="flex-1 min-w-0 px-2 py-1 text-[10px] rounded-lg border border-warm-200/50 dark:border-white/[0.08] bg-warm-50/60 dark:bg-white/[0.04] text-warm-700 dark:text-warm-300 focus:outline-none focus:ring-1 focus:ring-primary-500/30 placeholder:text-warm-400 transition-all duration-200"
                           />
                           <button
                             type="button"
                             onClick={handleSaveHintClick}
-                            className="px-1.5 py-1 rounded-lg bg-primary-50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-all duration-200 shrink-0"
-                            title="Save hint"
+                            className="px-1.5 py-1 rounded-lg bg-primary-50/80 dark:bg-primary-950/20 border border-primary-200/50 dark:border-primary-800/50 text-primary-600 dark:text-primary-400 hover:bg-primary-100/80 dark:hover:bg-primary-900/20 transition-all duration-200 shrink-0"
                           >
                             <Save className="w-2.5 h-2.5" />
                           </button>
@@ -452,7 +439,6 @@ export function Sidebar({
                         </button>
                       )}
 
-                      {/* View recovery code button */}
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -463,31 +449,36 @@ export function Sidebar({
                           View recovery code
                         </button>
                       </div>
+
+                      <div className="flex items-center gap-1 mt-1">
+                        <p className="text-[9px] text-warm-400 leading-tight flex-1">
+                          {hasBiometricCredential
+                            ? 'Unlocked — passphrase in memory'
+                            : 'API keys encrypted end-to-end'}
+                        </p>
+                        {hasBiometricCredential && (
+                          <button
+                            type="button"
+                            onClick={onClearBiometric}
+                            className="text-[9px] text-warm-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-red-50/50 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  {/* Status text + remove biometric */}
-                  <div className="flex items-center gap-1 mt-1">
-                    <p className="text-[9px] text-warm-400 leading-tight flex-1">
-                      {hasBiometricCredential
-                        ? 'Unlocked — passphrase in memory for this session'
-                        : 'API keys encrypted end-to-end'}
+                  {!hasBiometricCredential && (
+                    <p className="text-[9px] text-warm-400 mt-1 leading-tight">
+                      API keys encrypted end-to-end
                     </p>
-                    {hasBiometricCredential && (
-                      <button
-                        type="button"
-                        onClick={onClearBiometric}
-                        className="text-[9px] text-warm-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-950"
-                      >
-                        <Trash2 className="w-2.5 h-2.5" />
-                        Remove
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </>
               )}
 
-              {/* ── NO PASSPHRASE, NO BIOMETRIC ── */}
+              {/* No passphrase, no biometric */}
               {!passphrase && !hasBiometricCredential && !recoveryCode && (
                 <>
                   <input
@@ -495,9 +486,9 @@ export function Sidebar({
                     value={passphrase}
                     onChange={(e) => onPassphraseChange(e.target.value)}
                     placeholder="Set a passphrase..."
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-warm-200 dark:border-[#2a2724] bg-warm-50 dark:bg-[#121110] text-warm-700 dark:text-warm-300 focus:outline-none focus:ring-1 focus:ring-primary-500/30 placeholder:text-warm-400 transition-all duration-200"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-warm-200/50 dark:border-white/[0.08] bg-warm-50/60 dark:bg-white/[0.04] text-warm-700 dark:text-warm-300 focus:outline-none focus:ring-1 focus:ring-primary-500/30 placeholder:text-warm-400 transition-all duration-200"
                   />
-                  <p className="text-[9px] text-warm-400 mt-1 leading-tight">
+                  <p className="text-[9px] text-warm-400 mt-1.5 leading-tight">
                     Unset — API keys sent in plaintext
                   </p>
                 </>
@@ -507,12 +498,12 @@ export function Sidebar({
 
           <div className={collapsed ? 'p-3 flex flex-col items-center gap-2' : 'p-3'}>
             {collapsed ? (
-              <button onClick={toggleTheme} className="p-2 rounded-xl hover:bg-warm-50 dark:hover:bg-[#121110] transition-colors text-warm-400 hover:text-warm-600 dark:hover:text-warm-300">
+              <button onClick={toggleTheme} className="p-2 rounded-xl hover:bg-warm-50/60 dark:hover:bg-white/[0.04] transition-colors text-warm-400 hover:text-warm-600 dark:hover:text-warm-300">
                 {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
             ) : (
-              <button onClick={toggleTheme} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl hover:bg-warm-50 dark:hover:bg-[#121110] transition-all duration-200 text-sm text-warm-500 dark:text-warm-400">
-                <div className="w-7 h-7 rounded-lg bg-warm-100 dark:bg-[#2a2724] flex items-center justify-center">
+              <button onClick={toggleTheme} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl hover:bg-warm-50/60 dark:hover:bg-white/[0.03] transition-all duration-200 text-sm text-warm-500 dark:text-warm-400">
+                <div className="w-7 h-7 rounded-lg bg-warm-100/60 dark:bg-white/[0.05] flex items-center justify-center">
                   {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                 </div>
                 <span>{isDark ? 'Light' : 'Dark'} mode</span>

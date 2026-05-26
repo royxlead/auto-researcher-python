@@ -32,7 +32,7 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<ForceGraphMethods<any, any> | undefined>(undefined)
-  const [dimensions, setDimensions] = useState({ width: 800, height: 420 })
+  const [dimensions, setDimensions] = useState({ width: 340, height: 340 })
   const [hoverNode, setHoverNode] = useState<string | null>(null)
 
   useEffect(() => {
@@ -131,9 +131,21 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
 
   useEffect(() => {
     if (graphRef.current) {
-      graphRef.current.d3Force('charge')?.strength(-300)
-      graphRef.current.d3Force('link')?.distance(100)
+      graphRef.current.d3Force('charge')?.strength(-150)
+      graphRef.current.d3Force('link')?.distance(60)
       graphRef.current.d3ReheatSimulation()
+    }
+  }, [data])
+
+  // Auto fit on mount
+  useEffect(() => {
+    if (graphRef.current && data.nodes.length > 1) {
+      const timer = setTimeout(() => {
+        try {
+          graphRef.current?.zoomToFit(300, 60)
+        } catch { /* not ready yet */ }
+      }, 200)
+      return () => clearTimeout(timer)
     }
   }, [data])
 
@@ -141,14 +153,14 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
     if (typeof node.x !== 'number' || typeof node.y !== 'number') return
     const isRoot = node.group === 'topic'
     const isHovered = node.id === hoverNode
-    const r = isRoot ? 5 : 3
+    const r = isRoot ? 5.5 : 3.5
 
     // Glow on hover
     if (isHovered) {
       ctx.beginPath()
-      ctx.arc(node.x, node.y, r * 5, 0, 2 * Math.PI)
-      const gradient = ctx.createRadialGradient(node.x, node.y, r, node.x, node.y, r * 5)
-      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.25)')
+      ctx.arc(node.x, node.y, r * 3, 0, 2 * Math.PI)
+      const gradient = ctx.createRadialGradient(node.x, node.y, r, node.x, node.y, r * 4)
+      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.2)')
       gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
       ctx.fillStyle = gradient
       ctx.fill()
@@ -158,13 +170,13 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
     if (isRoot) {
       ctx.beginPath()
       ctx.arc(node.x, node.y, r + 3, 0, 2 * Math.PI)
-      ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)'
-      ctx.lineWidth = 1.5
+      ctx.strokeStyle = 'rgba(99, 102, 241, 0.25)'
+      ctx.lineWidth = 1
       ctx.stroke()
       ctx.beginPath()
       ctx.arc(node.x, node.y, r + 6, 0, 2 * Math.PI)
-      ctx.strokeStyle = 'rgba(99, 102, 241, 0.1)'
-      ctx.lineWidth = 1
+      ctx.strokeStyle = 'rgba(99, 102, 241, 0.08)'
+      ctx.lineWidth = 0.8
       ctx.stroke()
     }
 
@@ -178,21 +190,21 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
       ctx.beginPath()
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
       ctx.strokeStyle = '#818cf8'
-      ctx.lineWidth = 1.5
+      ctx.lineWidth = 1.2
       ctx.stroke()
     }
 
-    // Label
-    if (isHovered || isRoot) {
+    // Label — only show on hover for such a small graph
+    if (isHovered) {
       const label = node.shortName
-      const fontSize = isRoot ? 11/globalScale : 9/globalScale
+      const fontSize = 10 / globalScale
       ctx.font = `${isRoot ? '600' : ''} ${fontSize}px Inter, sans-serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillStyle = isHovered ? '#f5f3f0' : '#b0a99b'
-      ctx.shadowColor = 'rgba(0,0,0,0.6)'
-      ctx.shadowBlur = 4
-      ctx.fillText(label, node.x, node.y + r + 7 + fontSize / 2)
+      ctx.fillStyle = '#f5f3f0'
+      ctx.shadowColor = 'rgba(0,0,0,0.8)'
+      ctx.shadowBlur = 5
+      ctx.fillText(label, node.x, node.y + r + 6 + fontSize / 2)
       ctx.shadowBlur = 0
     }
   }, [hoverNode])
@@ -200,10 +212,10 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
   const nodePointerAreaPaint = useCallback((node: Node, color: string, ctx: CanvasRenderingContext2D) => {
     if (typeof node.x !== 'number' || typeof node.y !== 'number') return
     const isRoot = node.group === 'topic'
-    const r = isRoot ? 5 : 3
+    const r = isRoot ? 5.5 : 3.5
     ctx.fillStyle = color
     ctx.beginPath()
-    ctx.arc(node.x, node.y, r + 8, 0, 2 * Math.PI)
+    ctx.arc(node.x, node.y, r + 7, 0, 2 * Math.PI)
     ctx.fill()
   }, [])
 
@@ -216,16 +228,16 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-[420px] bg-[#121110]">
+    <div ref={containerRef} className="relative w-full aspect-square bg-[#121110]">
       {/* Controls */}
       <div className="absolute top-3 right-3 z-10 flex gap-0.5 bg-black/40 backdrop-blur-sm rounded-lg p-1 border border-white/5">
-        <button onClick={() => handleZoom(1.2)} className="p-1.5 rounded hover:bg-white/10 text-neutral-500 hover:text-primary-400 transition-colors">
+        <button onClick={() => handleZoom(1.2)} className="p-1.5 rounded hover:bg-white/10 text-primary-400 transition-colors">
           <ZoomIn className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => handleZoom(0.8)} className="p-1.5 rounded hover:bg-white/10 text-neutral-500 hover:text-primary-400 transition-colors">
+        <button onClick={() => handleZoom(0.8)} className="p-1.5 rounded hover:bg-white/10 text-primary-400 transition-colors">
           <ZoomOut className="w-3.5 h-3.5" />
         </button>
-        <button onClick={handleFit} className="p-1.5 rounded hover:bg-white/10 text-neutral-500 hover:text-primary-400 transition-colors">
+        <button onClick={handleFit} className="p-1.5 rounded hover:bg-white/10 text-primary-400 transition-colors">
           <Crosshair className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -259,15 +271,17 @@ export function KnowledgeGraph({ topic, sources, graphData }: Props) {
 
       {/* Legend */}
       <div className="absolute bottom-3 left-3">
-        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/5">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-primary-500" />
-            <span className="text-[10px] text-warm-400">Topic</span>
+        <div className="flex items-center gap-4 bg-black/50 backdrop-blur-sm px-3.5 py-2 rounded-xl border border-white/[0.06] shadow-lg">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-primary-500 ring-1 ring-primary-400/40" />
+            <span className="text-[10px] font-medium text-neutral-400">Topic</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-warm-500" />
-            <span className="text-[10px] text-warm-400">Source</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-warm-500 ring-1 ring-warm-400/30" />
+            <span className="text-[10px] font-medium text-neutral-400">Source</span>
           </div>
+          <div className="w-px h-4 bg-white/[0.06]" />
+          <span className="text-[10px] text-neutral-500">Click a source to open</span>
         </div>
       </div>
     </div>

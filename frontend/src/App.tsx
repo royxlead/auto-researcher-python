@@ -3,10 +3,11 @@ import { ResearchForm } from './components/ResearchForm'
 import { ReportView } from './components/ReportView'
 import { LoadingState } from './components/LoadingState'
 import { useResearch } from './hooks/useResearch'
-import { AlertCircle, TrendingUp, BookOpen, Network, FileSearch } from 'lucide-react'
+import { TrendingUp, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   hasBiometricCredential,
   getRecoveryHint,
@@ -44,11 +45,20 @@ function App() {
   const [biometricError, setBiometricError] = useState<string | null>(null)
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null)
   const [passphraseHint, setPassphraseHint] = useState(() => getRecoveryHint())
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const heroRef = useRef<HTMLDivElement>(null)
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 })
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Auto-clear biometric error after 5 seconds
+  // Read ?topic= from URL (e.g. when coming from Welcome page)
+  useEffect(() => {
+    const topicParam = searchParams.get('topic')
+    if (topicParam) {
+      setSelectedTopic(topicParam)
+    }
+  }, [searchParams])
+
   useEffect(() => {
     if (biometricError) {
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
@@ -59,36 +69,26 @@ function App() {
     }
   }, [biometricError])
 
-  // Register biometric credential — encrypt passphrase + generate recovery code
   const handleRegisterBiometric = useCallback(async () => {
     if (!passphrase) return
     setIsUnlocking(true)
     setBiometricError(null)
     try {
       const { credentialId, keyMaterial } = await registerBiometricKey()
-
-      // 1. Encrypt passphrase with PRF key (biometric unlock)
       const encryptedBiometric = await encryptWithRawKey(passphrase, keyMaterial)
       localStorage.setItem('webauthn-credential-id', credentialId)
       localStorage.setItem('webauthn-encrypted-passphrase', encryptedBiometric.encrypted)
       localStorage.setItem('webauthn-encryption-iv', encryptedBiometric.iv)
-
-      // 2. Generate a recovery code and encrypt passphrase with it
       const code = generateRecoveryCode()
       const encryptedRecovery = await encryptField(passphrase, code)
       localStorage.setItem('webauthn-recovery-encrypted', encryptedRecovery.encrypted)
       localStorage.setItem('webauthn-recovery-iv', encryptedRecovery.iv)
       localStorage.setItem('webauthn-recovery-salt', encryptedRecovery.salt)
-
-      // 3. Also encrypt the recovery code with the passphrase (for viewing later)
       const encryptedCodeView = await encryptField(code, passphrase)
       localStorage.setItem('webauthn-recovery-code-encrypted', encryptedCodeView.encrypted)
       localStorage.setItem('webauthn-recovery-code-iv', encryptedCodeView.iv)
       localStorage.setItem('webauthn-recovery-code-salt', encryptedCodeView.salt)
-
-      // 4. Save current hint
       localStorage.setItem('webauthn-recovery-hint', passphraseHint)
-
       setHasBiometric(true)
       setRecoveryCode(code)
     } catch (err) {
@@ -99,24 +99,18 @@ function App() {
     }
   }, [passphrase, passphraseHint])
 
-  // Unlock with biometric — decrypt stored passphrase
   const handleUnlockBiometric = useCallback(async () => {
     setIsUnlocking(true)
     setBiometricError(null)
     try {
       const credentialId = localStorage.getItem('webauthn-credential-id')
-      if (!credentialId) {
-        throw new Error('No biometric credential found')
-      }
-
+      if (!credentialId) throw new Error('No biometric credential found')
       const keyMaterial = await unlockWithBiometric(credentialId)
-
       const encryptedPayload = {
         encrypted: localStorage.getItem('webauthn-encrypted-passphrase') || '',
         iv: localStorage.getItem('webauthn-encryption-iv') || '',
         salt: '',
       }
-
       const decrypted = await decryptWithRawKey(encryptedPayload, keyMaterial)
       setPassphrase(decrypted)
     } catch (err) {
@@ -127,7 +121,6 @@ function App() {
     }
   }, [])
 
-  // Recover passphrase using the emergency recovery code
   const handleRecoverWithCode = useCallback(async (code: string) => {
     setIsUnlocking(true)
     setBiometricError(null)
@@ -137,33 +130,26 @@ function App() {
         iv: localStorage.getItem('webauthn-recovery-iv') || '',
         salt: localStorage.getItem('webauthn-recovery-salt') || '',
       }
-
       if (!payload.encrypted || !payload.iv || !payload.salt) {
         throw new Error('No recovery data found. Did you set up biometric unlock?')
       }
-
       const decrypted = await decryptField(payload, code)
-
-      // Clean up biometric credential since it's dead
       clearBiometricCredential()
       setHasBiometric(false)
-
       setPassphrase(decrypted)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Recovery failed — check your code and try again'
       setBiometricError(msg)
-      throw err // let Sidebar know it failed
+      throw err
     } finally {
       setIsUnlocking(false)
     }
   }, [])
 
-  // Dismiss the recovery code display after user has saved it
   const handleDismissRecoveryCode = useCallback(() => {
     setRecoveryCode(null)
   }, [])
 
-  // Show stored recovery code again (requires passphrase in memory)
   const handleShowRecoveryCode = useCallback(async () => {
     if (!passphrase) return
     try {
@@ -179,13 +165,11 @@ function App() {
     }
   }, [passphrase])
 
-  // Save hint to localStorage
   const handleSaveHint = useCallback((hint: string) => {
     setPassphraseHint(hint)
     localStorage.setItem('webauthn-recovery-hint', hint)
   }, [])
 
-  // Clear biometric credential
   const handleClearBiometric = useCallback(() => {
     clearBiometricCredential()
     setHasBiometric(false)
@@ -234,22 +218,8 @@ function App() {
     })
   }
 
-  const heroVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.08, delayChildren: 0.05 }
-    }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 16 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const } }
-  }
-
   return (
-    <div className="flex h-screen bg-warm-50 dark:bg-[#121110] text-warm-800 dark:text-warm-300 overflow-hidden selection:bg-primary-500 selection:text-white dark:selection:bg-primary-400 dark:selection:text-[#121110]">
-      {/* Sidebar */}
+    <div className="flex h-screen bg-warm-50 dark:bg-[#0c0b0a] text-warm-800 dark:text-warm-300 overflow-hidden selection:bg-primary-500 selection:text-white dark:selection:bg-primary-400 dark:selection:text-[#0c0b0a]">
       <Sidebar
         history={history}
         onSelect={setCurrentResult}
@@ -271,126 +241,127 @@ function App() {
         onShowRecoveryCode={handleShowRecoveryCode}
       />
 
-      {/* Main */}
       <main className="flex-1 flex flex-col h-full min-w-0">
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-8 py-12 lg:py-16">
-            <AnimatePresence mode="wait">
-              {!currentResult && !isLoading ? (
-                <motion.div
-                  key="hero"
-                  variants={heroVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit={{ opacity: 0 }}
-                  ref={heroRef}
-                  className="relative"
-                >
-                  {/* Ambient glow that follows mouse */}
+          <AnimatePresence mode="wait">
+            {!currentResult && !isLoading ? (
+              <motion.div
+                key="hero"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                ref={heroRef}
+                className="relative max-w-2xl mx-auto px-6 sm:px-8 lg:px-12 h-full flex flex-col items-center justify-center"
+              >
+                {/* Animated background blobs */}
+                <div className="pointer-events-none absolute inset-0 overflow-hidden">
                   <div
-                    className="pointer-events-none absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full opacity-40 dark:opacity-50"
+                    className="absolute top-[20%] left-[10%] w-[400px] h-[400px] rounded-full opacity-15 dark:opacity-8 animate-float-slow"
                     style={{
-                      background: `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, rgba(99,102,241,0.10) 0%, rgba(245,158,11,0.05) 40%, transparent 70%)`,
-                      transition: 'background 0.3s ease'
+                      background: 'radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%)',
                     }}
                   />
+                  <div
+                    className="absolute bottom-[10%] right-[5%] w-[300px] h-[300px] rounded-full opacity-10 dark:opacity-5 animate-float-medium"
+                    style={{
+                      background: 'radial-gradient(circle, rgba(245,158,11,0.15) 0%, transparent 70%)',
+                    }}
+                  />
+                </div>
 
-                  <div className="relative z-10 flex flex-col items-center text-center">
-                    {/* Brand badge */}
-                    <motion.div variants={itemVariants} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#1a1917] border border-warm-200 dark:border-[#2a2724] shadow-sm text-xs font-medium text-warm-500 dark:text-warm-400 mb-8">
-                      <div className="w-2 h-2 rounded-full bg-primary-500" />
-                      AI-Powered Research Assistant
-                    </motion.div>
+                {/* Mouse-tracking ambient glow */}
+                <div
+                  className="pointer-events-none fixed top-0 left-0 w-full h-full opacity-20 dark:opacity-10"
+                  style={{
+                    background: `radial-gradient(600px circle at ${mousePos.x}% ${mousePos.y}%, rgba(99,102,241,0.08) 0%, rgba(245,158,11,0.03) 30%, transparent 60%)`,
+                  }}
+                />
 
-                    {/* Hero text */}
-                    <motion.div variants={itemVariants} className="space-y-3">
-                      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-warm-900 dark:text-warm-100 leading-[1.05] max-w-2xl">
-                        Research anything.{' '}
-                        <span className="bg-gradient-to-r from-primary-600 to-primary-400 dark:from-primary-400 dark:to-primary-300 bg-clip-text text-transparent">Instantly.</span>
-                      </h1>
-                      <p className="text-base sm:text-lg text-warm-500 dark:text-warm-400 max-w-lg mx-auto leading-relaxed">
-                        Autonomous agents search, analyze, and synthesize academic papers into comprehensive reports.
-                      </p>
-                    </motion.div>
-
-                    {/* Form */}
-                    <motion.div variants={itemVariants} className="w-full max-w-xl mt-10">
-                      <div className="relative">
-                        {/* Subtle glow behind form */}
-                        <div className="absolute -inset-8 bg-gradient-to-r from-primary-500/5 via-accent-500/5 to-primary-500/5 rounded-[32px] blur-2xl" />
-                        <div className="relative">
-                          <ResearchForm
-                            onSubmit={handleResearch}
-                            isLoading={isLoading}
-                            selectedTopic={selectedTopic}
-                            encryptionPassphrase={passphrase}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Trending */}
-                      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                        <span className="flex items-center gap-1 text-xs text-warm-400 font-medium mr-0.5">
-                          <TrendingUp className="w-3 h-3" />
-                          Trending
-                        </span>
-                        {TRENDING_TOPICS.map((topic, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setSelectedTopic(topic)}
-                            className="px-3 py-1 text-xs text-warm-500 dark:text-warm-400 hover:text-warm-800 dark:hover:text-warm-200 bg-white dark:bg-[#1a1917] hover:bg-warm-100 dark:hover:bg-[#2a2724] border border-warm-200 dark:border-[#2a2724] rounded-full transition-all duration-200 shadow-sm hover:shadow"
-                          >
-                            {topic}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-
-                    {/* Features */}
-                    <motion.div variants={itemVariants} className="w-full max-w-xl mt-16 pt-12 border-t border-warm-200 dark:border-[#2a2724]">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {[
-                          { icon: FileSearch, label: "Multi-agent pipeline", desc: "Research, draft, critique", color: "text-primary-500" },
-                          { icon: BookOpen, label: "Academic sources", desc: "ArXiv & repositories", color: "text-accent-500" },
-                          { icon: Network, label: "Structured reports", desc: "Markdown with citations", color: "text-emerald-500" }
-                        ].map((f, i) => (
-                          <div key={i} className="group card-subtle p-4 text-left cursor-default">
-                            <div className={`w-8 h-8 rounded-lg bg-white dark:bg-[#121110] border border-warm-200 dark:border-[#2a2724] flex items-center justify-center mb-3 group-hover:border-primary-200 dark:group-hover:border-primary-800 transition-colors`}>
-                              <f.icon className={`w-4 h-4 ${f.color}`} />
-                            </div>
-                            <div className="text-sm font-semibold text-warm-800 dark:text-warm-200">{f.label}</div>
-                            <div className="text-xs text-warm-400 mt-0.5">{f.desc}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
+                <div className="relative z-10 w-full flex flex-col items-center text-center">
+                  {/* Compact hero */}
+                  <div className="mb-8">
+                    <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-warm-900 dark:text-warm-100 leading-[1.1]">
+                      Research anything.{' '}
+                      <span className="gradient-text">Instantly.</span>
+                    </h1>
+                    <p className="text-sm text-warm-400 mt-2 max-w-md mx-auto leading-relaxed">
+                      Enter a topic to generate a comprehensive research report powered by autonomous agents.
+                    </p>
                   </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="results"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] as const }}
-                >
-                  {error && (
-                    <div className="mb-6 flex items-center gap-2.5 px-4 py-3.5 bg-red-50 dark:bg-red-950 border border-red-100 dark:border-red-900 rounded-xl text-sm text-red-600 dark:text-red-400 shadow-sm">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <p>{error}</p>
-                    </div>
-                  )}
 
-                  {isLoading ? (
-                    <LoadingState onStop={stopResearch} />
-                  ) : currentResult ? (
-                    <ErrorBoundary>
-                      <ReportView data={currentResult} />
-                    </ErrorBoundary>
-                  ) : null}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                  {/* Form */}
+                  <div className="w-full max-w-xl">
+                    <div className="relative">
+                      <div className="absolute -inset-4 bg-gradient-to-r from-primary-500/8 via-accent-500/5 to-primary-500/8 rounded-[24px] blur-2xl" />
+                      <div className="relative">
+                        <ResearchForm
+                          onSubmit={handleResearch}
+                          isLoading={isLoading}
+                          selectedTopic={selectedTopic}
+                          encryptionPassphrase={passphrase}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Trending chips */}
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                      <span className="flex items-center gap-1.5 text-[11px] text-warm-400 font-medium mr-0.5">
+                        <TrendingUp className="w-3 h-3" />
+                        Trending
+                      </span>
+                      {TRENDING_TOPICS.map((topic, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedTopic(topic)}
+                          className="px-3 py-1 text-[11px] text-warm-400 hover:text-warm-700 dark:hover:text-warm-300 glass-card hover:shadow-sm transition-all duration-200"
+                        >
+                          {topic}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Subtle link to welcome page */}
+                  <button
+                    onClick={() => navigate('/')}
+                    className="mt-10 text-[11px] text-warm-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors flex items-center gap-1"
+                  >
+                    Learn more about Auto-Researcher
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="results"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-10"
+              >
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 flex items-center gap-3 px-5 py-4 bg-red-50/80 dark:bg-red-950/30 backdrop-blur-sm border border-red-200/60 dark:border-red-900/50 rounded-xl text-sm text-red-600 dark:text-red-400 shadow-sm"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                    <p className="flex-1">{error}</p>
+                  </motion.div>
+                )}
+
+                {isLoading ? (
+                  <LoadingState onStop={stopResearch} />
+                ) : currentResult ? (
+                  <ErrorBoundary>
+                    <ReportView data={currentResult} />
+                  </ErrorBoundary>
+                ) : null}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>

@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 import structlog
 import json
 import asyncio
+import re
 import uuid
 from datetime import datetime
 
@@ -114,7 +115,11 @@ async def run_research_stream(request: ResearchRequest):
             # Get final state to return the result
             final_state = await graph.ainvoke(initial_state)
             draft = final_state.get("draft")
-            sources = [doc["source"] for doc in final_state.get("documents", [])]
+            # Deduplicate sources by base URL (strip " (part N)" suffix)
+            raw_sources = [doc["source"] for doc in final_state.get("documents", [])]
+            sources = list(dict.fromkeys(
+                re.sub(r'\s*\(part \d+\)$', '', s) for s in raw_sources
+            ))
             
             # Save graph execution trace (encrypted at rest if passphrase provided)
             tracer = TraceLogger(
@@ -210,7 +215,11 @@ async def run_research(request: ResearchRequest) -> ResearchResponse:
         logger.error("api.research.empty_draft")
         raise HTTPException(status_code=424, detail="Workflow did not produce a draft")
 
-    sources = [doc["source"] for doc in result.get("documents", [])]
+    # Deduplicate sources by base URL (strip " (part N)" suffix)
+    raw_sources = [doc["source"] for doc in result.get("documents", [])]
+    sources = list(dict.fromkeys(
+        re.sub(r'\s*\(part \d+\)$', '', s) for s in raw_sources
+    ))
     logger.info("api.research.complete", sources=len(sources))
     
     documents = result.get("documents", [])

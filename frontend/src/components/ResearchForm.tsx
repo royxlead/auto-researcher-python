@@ -83,6 +83,7 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
   const [providerSearch, setProviderSearch] = useState('')
   const [highlightedIdx, setHighlightedIdx] = useState(0)
   const comboboxRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites))
@@ -128,6 +129,13 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
     if (selectedTopic) setTopic(selectedTopic)
   }, [selectedTopic])
 
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px'
+    }
+  }, [topic])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!topic.trim()) return
@@ -136,7 +144,6 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
     let encIv: string | undefined
     let encSalt: string | undefined
 
-    // Zero-knowledge: encrypt API key client-side if passphrase is set
     if (encryptionPassphrase && apiKey) {
       const prov = PROVIDERS.find(p => p.value === provider)
       if (prov?.needsKey) {
@@ -157,22 +164,28 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
   const handleSurpriseMe = () => {
     const randomTopic = SURPRISE_TOPICS[Math.floor(Math.random() * SURPRISE_TOPICS.length)]
     setTopic(randomTopic)
+    if (textareaRef.current) {
+      textareaRef.current.focus()
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
       {/* Input */}
       <div className="group relative">
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-500/20 via-accent-500/10 to-primary-500/20 rounded-[14px] opacity-0 group-focus-within:opacity-100 blur-sm transition-opacity duration-300" />
-        <div className="relative flex items-start gap-3 px-4 py-3.5 bg-white dark:bg-[#1a1917] border border-warm-200 dark:border-[#2a2724] rounded-xl focus-within:border-primary-400 dark:focus-within:border-primary-600 transition-all duration-200 shadow-sm group-focus-within:shadow-md">
-          <Search className="w-5 h-5 text-warm-400 mt-2.5 shrink-0 group-focus-within:text-primary-500 transition-colors" />
+        <div className="absolute -inset-1 bg-gradient-to-r from-primary-500/20 via-accent-500/10 to-primary-500/20 rounded-[18px] opacity-0 group-focus-within:opacity-100 blur-md transition-opacity duration-500" />
+        <div className="relative flex items-start gap-3 px-5 py-4 bg-white dark:bg-[#161514] border border-warm-200/60 dark:border-white/[0.08] rounded-2xl focus-within:border-primary-400/60 dark:focus-within:border-primary-500/40 transition-all duration-300 shadow-sm group-focus-within:shadow-lg group-focus-within:shadow-primary-500/5">
+          <div className="w-10 h-10 rounded-xl bg-warm-100 dark:bg-white/[0.06] flex items-center justify-center shrink-0 mt-1 group-focus-within:bg-primary-50 dark:group-focus-within:bg-primary-950/30 transition-colors duration-300">
+            <Search className="w-[18px] h-[18px] text-warm-400 group-focus-within:text-primary-500 transition-colors" />
+          </div>
           <div className="flex-1 relative">
             <textarea
+              ref={textareaRef}
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="What topic do you want to research?"
-              className="w-full bg-transparent border-none text-base text-warm-800 dark:text-warm-100 placeholder-warm-400 focus:ring-0 focus:outline-none resize-none min-h-[44px] leading-relaxed pr-24"
-              rows={2}
+              className="w-full bg-transparent border-none text-base text-warm-800 dark:text-warm-100 placeholder-warm-400 focus:ring-0 focus:outline-none resize-none min-h-[28px] leading-relaxed pr-20 py-1"
+              rows={1}
               required
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -185,9 +198,8 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
               <button
                 type="button"
                 onClick={handleSurpriseMe}
-                className="absolute right-0 top-1 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-all duration-200 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-950"
+                className="absolute right-0 top-0.5 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-all duration-200 flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-950/40"
               >
-                <Shuffle className="w-3 h-3" />
                 Surprise me
               </button>
             )}
@@ -195,23 +207,27 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
           <button
             type="submit"
             disabled={isLoading || !topic.trim()}
-            className="mt-1 p-2.5 rounded-lg bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 disabled:from-warm-300 disabled:to-warm-300 dark:disabled:from-warm-700 dark:disabled:to-warm-700 text-white disabled:text-warm-400 dark:disabled:text-warm-500 transition-all duration-200 shadow-sm hover:shadow shrink-0 disabled:cursor-not-allowed"
+            className="mt-1 p-3 rounded-xl bg-gradient-to-br from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 disabled:from-warm-300 disabled:to-warm-300 dark:disabled:from-white/[0.08] dark:disabled:to-white/[0.06] text-white disabled:text-warm-400 dark:disabled:text-warm-600 transition-all duration-200 shadow-md shadow-primary-500/20 hover:shadow-lg hover:shadow-primary-500/30 disabled:shadow-none shrink-0 disabled:cursor-not-allowed active:scale-95"
           >
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin block" />
+            ) : (
+              <ArrowRight className="w-[18px] h-[18px]" />
+            )}
           </button>
         </div>
       </div>
 
       {/* Advanced toggle */}
-      <div className="flex justify-center mt-3">
+      <div className="flex justify-center mt-4">
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-1.5 text-xs text-warm-400 hover:text-warm-600 dark:hover:text-warm-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-warm-100 dark:hover:bg-[#2a2724]"
+          className="flex items-center gap-1.5 text-xs text-warm-400 hover:text-warm-600 dark:hover:text-warm-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/50 dark:hover:bg-white/[0.04]"
         >
-          <Sliders className="w-3 h-3" />
+          <Sliders className="w-3.5 h-3.5" />
           {showAdvanced ? 'Hide options' : 'Options'}
-          <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`} />
         </button>
       </div>
 
@@ -222,62 +238,62 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-warm-200 dark:border-[#2a2724]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 pt-5 border-t border-warm-200/50 dark:border-white/[0.06]">
               {/* Depth */}
-              <div className="card-subtle p-4">
-                <div className="flex items-center justify-between mb-2">
+              <div className="glass-card p-4">
+                <div className="flex items-center justify-between mb-2.5">
                   <span className="flex items-center gap-1.5 text-xs font-medium text-warm-600 dark:text-warm-400">
                     <Zap className="w-3.5 h-3.5 text-amber-500" />
                     Depth
                   </span>
-                  <span className="text-xs text-warm-400 font-mono bg-warm-100 dark:bg-[#2a2724] px-2 py-0.5 rounded">{depth}</span>
+                  <span className="text-xs text-warm-400 font-mono bg-warm-100/60 dark:bg-white/[0.06] px-2 py-0.5 rounded-md">{depth}</span>
                 </div>
                 <input type="range" min="1" max="10" value={depth} onChange={(e) => setDepth(Number(e.target.value))} className="w-full" />
-                <div className="flex justify-between text-[10px] text-warm-400 mt-1">
+                <div className="flex justify-between text-[10px] text-warm-400 mt-1.5 px-0.5">
                   <span>Fast</span>
                   <span>Deep</span>
                 </div>
               </div>
 
               {/* Papers */}
-              <div className="card-subtle p-4">
-                <div className="flex items-center justify-between mb-2">
+              <div className="glass-card p-4">
+                <div className="flex items-center justify-between mb-2.5">
                   <span className="flex items-center gap-1.5 text-xs font-medium text-warm-600 dark:text-warm-400">
                     <BookOpen className="w-3.5 h-3.5 text-primary-500" />
                     Sources
                   </span>
-                  <span className="text-xs text-warm-400 font-mono bg-warm-100 dark:bg-[#2a2724] px-2 py-0.5 rounded">{numPapers}</span>
+                  <span className="text-xs text-warm-400 font-mono bg-warm-100/60 dark:bg-white/[0.06] px-2 py-0.5 rounded-md">{numPapers}</span>
                 </div>
                 <input type="range" min="5" max="50" step="5" value={numPapers} onChange={(e) => setNumPapers(Number(e.target.value))} className="w-full" />
-                <div className="flex justify-between text-[10px] text-warm-400 mt-1">
+                <div className="flex justify-between text-[10px] text-warm-400 mt-1.5 px-0.5">
                   <span>Brief</span>
                   <span>Extensive</span>
                 </div>
               </div>
 
               {/* Strictness */}
-              <div className="card-subtle p-4 sm:col-span-2">
-                <div className="flex items-center justify-between mb-2">
+              <div className="glass-card p-4 sm:col-span-2">
+                <div className="flex items-center justify-between mb-2.5">
                   <span className="flex items-center gap-1.5 text-xs font-medium text-warm-600 dark:text-warm-400">
                     <Scale className="w-3.5 h-3.5 text-rose-500" />
                     Critic strictness
                   </span>
-                  <span className="text-xs text-warm-400 font-mono bg-warm-100 dark:bg-[#2a2724] px-2 py-0.5 rounded">{strictness}/10</span>
+                  <span className="text-xs text-warm-400 font-mono bg-warm-100/60 dark:bg-white/[0.06] px-2 py-0.5 rounded-md">{strictness}/10</span>
                 </div>
                 <input type="range" min="1" max="10" value={strictness} onChange={(e) => setStrictness(Number(e.target.value))} className="w-full" />
-                <div className="flex justify-between text-[10px] text-warm-400 mt-1">
+                <div className="flex justify-between text-[10px] text-warm-400 mt-1.5 px-0.5">
                   <span>Lenient</span>
                   <span>Rigorous</span>
                 </div>
               </div>
 
               {/* Provider & Model */}
-              <div className="sm:col-span-2 pt-3 mt-1 border-t border-warm-100 dark:border-[#2a2724]">
+              <div className="sm:col-span-2 pt-4 mt-2 border-t border-warm-100/50 dark:border-white/[0.06]">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <label className="text-[11px] font-medium text-warm-500 dark:text-warm-400 flex items-center gap-1.5">
                       <Globe className="w-3 h-3 text-primary-500" />
                       Provider
@@ -295,10 +311,10 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                               key={favVal}
                               type="button"
                               onClick={() => selectProvider(favVal)}
-                              className={`px-2 py-1 text-[11px] rounded-lg transition-all duration-150 ${
+                              className={`px-2.5 py-1 text-[11px] rounded-lg transition-all duration-150 ${
                                 isActive
-                                  ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium shadow-sm'
-                                  : 'bg-warm-100 dark:bg-[#2a2724] text-warm-500 dark:text-warm-400 hover:text-warm-700 dark:hover:text-warm-300 hover:bg-warm-200 dark:hover:bg-[#32302d]'
+                                  ? 'bg-primary-100/80 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium shadow-sm border border-primary-200/50 dark:border-primary-800/50'
+                                  : 'bg-warm-100/60 dark:bg-white/[0.06] text-warm-500 dark:text-warm-400 hover:text-warm-700 dark:hover:text-warm-300 hover:bg-warm-200/50 dark:hover:bg-white/[0.08] border border-transparent'
                               }`}
                             >
                               {SHORT_LABEL[favVal] || favVal}
@@ -308,7 +324,7 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                         <button
                           type="button"
                           onClick={() => setProviderSearchOpen(true)}
-                          className="px-1.5 text-[11px] text-warm-400 hover:text-warm-600 dark:hover:text-warm-300 transition-colors"
+                          className="px-2 text-[11px] text-warm-400 hover:text-warm-600 dark:hover:text-warm-300 transition-colors"
                           title="Show all providers"
                         >
                           +{PROVIDERS.length - favorites.length} more
@@ -326,29 +342,28 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                             setProviderSearch('')
                           }
                         }}
-                        className="w-full flex items-center justify-between px-3 py-2.5 bg-warm-50 dark:bg-[#121110] border border-warm-200 dark:border-[#2a2724] rounded-lg text-sm text-warm-700 dark:text-warm-300 hover:border-warm-300 dark:hover:border-warm-600 focus:outline-none focus:border-primary-400 dark:focus:border-primary-600 focus:ring-1 focus:ring-primary-500/20 transition-all duration-200"
+                        className="w-full flex items-center justify-between px-3 py-2.5 bg-warm-50/60 dark:bg-white/[0.04] border border-warm-200/50 dark:border-white/[0.08] rounded-xl text-sm text-warm-700 dark:text-warm-300 hover:border-warm-300/50 dark:hover:border-white/[0.12] focus:outline-none focus:border-primary-400/60 dark:focus:border-primary-500/40 focus:ring-1 focus:ring-primary-500/20 transition-all duration-200"
                       >
                         <span className="flex items-center gap-2">
                           {PROVIDERS.find(p => p.value === provider)?.label || provider}
                           {PROVIDERS.find(p => p.value === provider)?.needsKey && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">API key</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100/80 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">API key</span>
                           )}
                         </span>
                         <ChevronDown className={`w-3.5 h-3.5 text-warm-400 transition-transform duration-200 ${providerSearchOpen ? 'rotate-180' : ''}`} />
                       </button>
 
                       {providerSearchOpen && (
-                        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white dark:bg-[#1a1917] border border-warm-200 dark:border-[#2a2724] rounded-xl shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden">
-                          {/* Search input */}
-                          <div className="p-2 border-b border-warm-100 dark:border-[#2a2724]">
+                        <div className="absolute z-50 top-full mt-1.5 left-0 right-0 bg-white dark:bg-[#161514] border border-warm-200/60 dark:border-white/[0.08] rounded-xl shadow-xl shadow-black/5 dark:shadow-black/30 overflow-hidden backdrop-blur-xl">
+                          <div className="p-2 border-b border-warm-100/50 dark:border-white/[0.06]">
                             <div className="relative">
-                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-warm-400 pointer-events-none" />
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-warm-400 pointer-events-none" />
                               <input
                                 type="text"
                                 value={providerSearch}
                                 onChange={(e) => setProviderSearch(e.target.value)}
                                 placeholder="Search providers..."
-                                className="w-full pl-8 pr-3 py-2 bg-warm-50 dark:bg-[#121110] border border-warm-200 dark:border-[#2a2724] rounded-lg text-xs text-warm-700 dark:text-warm-300 focus:outline-none focus:border-primary-400 placeholder:text-warm-400 transition-colors"
+                                className="w-full pl-9 pr-3 py-2 bg-warm-50/60 dark:bg-white/[0.04] border border-warm-200/50 dark:border-white/[0.08] rounded-lg text-xs text-warm-700 dark:text-warm-300 focus:outline-none focus:border-primary-400/60 placeholder:text-warm-400 transition-colors"
                                 autoFocus
                                 onKeyDown={(e) => {
                                   if (e.key === 'ArrowDown') {
@@ -368,7 +383,6 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                             </div>
                           </div>
 
-                          {/* Options */}
                           <div className="max-h-56 overflow-y-auto py-1">
                             {filteredProviders.length === 0 ? (
                               <div className="px-4 py-6 text-center">
@@ -386,10 +400,10 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                                     onClick={() => selectProvider(p.value)}
                                     className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors ${
                                       i === highlightedIdx
-                                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                                        ? 'bg-primary-50/80 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
                                         : isSelected
-                                          ? 'text-warm-800 dark:text-warm-200 bg-warm-50 dark:bg-[#121110]'
-                                          : 'text-warm-600 dark:text-warm-400 hover:bg-warm-50 dark:hover:bg-[#121110]'
+                                          ? 'text-warm-800 dark:text-warm-200 bg-warm-50/50 dark:bg-white/[0.03]'
+                                          : 'text-warm-600 dark:text-warm-400 hover:bg-warm-50/50 dark:hover:bg-white/[0.03]'
                                     }`}
                                   >
                                     <span className="flex items-center gap-2.5">
@@ -400,7 +414,7 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                                       )}
                                       <span className="font-medium">{p.label}</span>
                                       {p.needsKey && (
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-warm-100 dark:bg-[#2a2724] text-warm-400 dark:text-warm-500">key</span>
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-warm-100/60 dark:bg-white/[0.06] text-warm-400 dark:text-warm-500">key</span>
                                       )}
                                     </span>
                                     <button
@@ -428,7 +442,7 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <label className="text-[11px] font-medium text-warm-500 dark:text-warm-400 flex items-center gap-1.5">
                       <Cpu className="w-3 h-3 text-accent-500" />
                       Model
@@ -438,7 +452,7 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                       value={model}
                       onChange={(e) => setModel(e.target.value)}
                       placeholder={PROVIDERS.find(p => p.value === provider)?.defaultModel || 'Enter model name'}
-                      className="w-full px-3 py-2.5 bg-warm-50 dark:bg-[#121110] border border-warm-200 dark:border-[#2a2724] rounded-lg text-sm text-warm-700 dark:text-warm-300 focus:outline-none focus:border-primary-400 dark:focus:border-primary-600 focus:ring-1 focus:ring-primary-500/20 transition-all duration-200 placeholder:text-warm-400"
+                      className="w-full px-3 py-2.5 bg-warm-50/60 dark:bg-white/[0.04] border border-warm-200/50 dark:border-white/[0.08] rounded-xl text-sm text-warm-700 dark:text-warm-300 focus:outline-none focus:border-primary-400/60 dark:focus:border-primary-500/40 focus:ring-1 focus:ring-primary-500/20 transition-all duration-200 placeholder:text-warm-400"
                     />
                   </div>
 
@@ -450,7 +464,7 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="sm:col-span-2 space-y-1.5"
+                        className="sm:col-span-2 space-y-2"
                       >
                         <label className="text-[11px] font-medium text-warm-500 dark:text-warm-400 flex items-center gap-1.5">
                           <Key className="w-3 h-3 text-amber-500" />
@@ -461,7 +475,7 @@ export function ResearchForm({ onSubmit, isLoading, selectedTopic, encryptionPas
                           value={apiKey}
                           onChange={(e) => setApiKey(e.target.value)}
                           placeholder={prov.apiKeyPlaceholder}
-                          className="w-full px-3 py-2.5 bg-warm-50 dark:bg-[#121110] border border-warm-200 dark:border-[#2a2724] rounded-lg text-sm text-warm-700 dark:text-warm-300 focus:outline-none focus:border-primary-400 dark:focus:border-primary-600 focus:ring-1 focus:ring-primary-500/20 transition-all duration-200 placeholder:text-warm-400"
+                          className="w-full px-3 py-2.5 bg-warm-50/60 dark:bg-white/[0.04] border border-warm-200/50 dark:border-white/[0.08] rounded-xl text-sm text-warm-700 dark:text-warm-300 focus:outline-none focus:border-primary-400/60 dark:focus:border-primary-500/40 focus:ring-1 focus:ring-primary-500/20 transition-all duration-200 placeholder:text-warm-400 font-mono text-xs"
                         />
                       </motion.div>
                     )
